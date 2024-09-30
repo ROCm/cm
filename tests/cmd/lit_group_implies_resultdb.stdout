@@ -1,0 +1,1 @@
+LIT_OPTS=$'--resultdb-output [CWD]/build/lit.json' cmake --build build --config Release -- check-foo

@@ -1,0 +1,12 @@
+{
+    "tests": [
+        {
+            "expected": false,
+            "testId": "LLVM :: bar"
+        },
+        {
+            "expected": true,
+            "testId": "LLVM :: foo"
+        }
+    ]
+}

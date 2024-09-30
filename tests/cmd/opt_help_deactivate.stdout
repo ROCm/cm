@@ -1,0 +1,33 @@
+Print shell commands to deactivate global options set via activate
+
+Attempts to remove elements from the PATH environment variable which correspond to the active
+CM_BIN, unsets CM_SRC/CM_BIN/CM_CFG, and unaliases cm.
+
+Usage: cm deactivate [OPTIONS]
+
+Options:
+  -c, --config <CONFIG>
+          Build Config
+          
+          [default: Release]
+
+  -d, --debug
+          Shorthand for `--config Debug`
+
+  -#, --dry-run
+          Perform a dry run, only printing the generated command line
+
+  -q, --quirks <QUIRKS>
+          Disable quirk mode detection and specify one explicitly
+          
+          [possible values: none, llvm]
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+CMAKE DIRECTORY OPTIONS:
+  -s, --source <SOURCE>
+          CMake Source Directory
+
+  -b, --binary <BINARY>
+          CMake Binary Directory

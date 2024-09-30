@@ -1,0 +1,1 @@
+LIT_OPTS=$'--resultdb-output [CWD]/build/lit.json' build/bin/llvm-lit ./test/bar

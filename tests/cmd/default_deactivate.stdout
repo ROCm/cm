@@ -1,0 +1,3 @@
+unalias cm;
+[ -z "$CM_BIN" ] || PATH="${PATH/$CM_BIN//bin:/}";
+unset -v CM_SRC CM_BIN CM_CFG;

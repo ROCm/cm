@@ -1,0 +1,33 @@
+[package]
+name = "cm"
+version = "0.1.0"
+license = "MIT"
+edition = "2021"
+build = "build.rs"
+
+[package.metadata.deb]
+maintainer = "AMD"
+copyright = "AMD"
+assets = [
+    ["target/release/cm", "usr/bin/cm", "755"],
+    ["gen/*.1", "usr/share/man/man1/", "644"],
+    ["gen/cm.bash", "usr/share/bash-completion/completions/cm", "644"],
+    ["gen/cm.fish", "usr/share/fish/completions/cm", "644"],
+    ["gen/_cm", "usr/share/zsh/vendor-completions/_cm", "644"],
+]
+
+[build-dependencies]
+clap = { version = "4.3.6", features = ["env", "derive", "wrap_help"] }
+clap_complete = "4.3.1"
+clap_mangen = "0.2.12"
+
+[dependencies]
+clap = { version = "4.3.6", features = ["env", "derive", "wrap_help"] }
+lazy_static = "1.4.0"
+regex = "1.6.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.87"
+shell-quote = "0.3.0"
+
+[dev-dependencies]
+trycmd = "0.14.16"

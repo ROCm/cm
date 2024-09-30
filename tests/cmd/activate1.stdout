@@ -1,0 +1,4 @@
+CM_SRC=. CM_BIN=bin CM_CFG=Release;
+export CM_SRC CM_BIN CM_CFG;
+PATH="$CM_BIN/bin:$PATH";
+alias cm='cm -s "$CM_SRC" -b "$CM_BIN" -c "$CM_CFG"';

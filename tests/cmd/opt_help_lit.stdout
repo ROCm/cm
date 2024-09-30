@@ -1,0 +1,74 @@
+llvm-lit
+
+Usage: cm lit [OPTIONS] [TESTS]... [-- <ARGS>...]
+
+Arguments:
+  [TESTS]...
+          Lit test paths to run
+
+  [ARGS]...
+          Trailing arguments to forward to llvm-lit
+          
+          Note that the -- separator is mandatory to signal the beginning of these verbatim
+          arguments, which is inconsistent with other subcommands like configure and build. This is
+          a compromise to make explicit passing of tests more ergonomic such that the default case
+          requires no additional flags or separators.
+
+Options:
+  -p, --print-only
+          Print tests that would be run
+
+  -x, --xfail-export
+          Print a command-line which exports LIT_XFAIL to the tests that would be run
+
+  -c, --config <CONFIG>
+          Build Config
+          
+          [default: Release]
+
+  -u, --update-resultdb[=<BOOL>]
+          Update the ResultDB file.
+          
+          Defaults to true unless -1/--first or a list of tests (via positional arguments) are
+          specified.
+          
+          Accepts explicit argument via -u/--update-resultdb=true or -u/--update-resultdb=false and
+          has a shorthand -u/--update-resultdb for the former.
+          
+          [default: true]
+          [possible values: true, false]
+
+  -d, --debug
+          Shorthand for `--config Debug`
+
+  -g, --group <GROUP>
+          Run the named LLVM "check" test group, and (by default) update the ResultDB.
+          
+          For known groups the name can be shortened by omitting the "check-" prefix, and only needs
+          to specify enough characters to unambiguously identify the test group. For example simply
+          "a" is enough to identify "check-all".
+
+  -#, --dry-run
+          Perform a dry run, only printing the generated command line
+
+  -1, --first
+          Only consider at most the first failing test in the ResultDB
+
+  -q, --quirks <QUIRKS>
+          Disable quirk mode detection and specify one explicitly
+          
+          [possible values: none, llvm]
+
+  -v, --verbose
+          Be as verbose as possible, asking FileCheck to dump its input and asking llvm-lit to
+          forward it to stdout
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+CMAKE DIRECTORY OPTIONS:
+  -s, --source <SOURCE>
+          CMake Source Directory
+
+  -b, --binary <BINARY>
+          CMake Binary Directory

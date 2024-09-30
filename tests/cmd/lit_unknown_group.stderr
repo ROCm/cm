@@ -1,0 +1,3 @@
+error: invalid value 'foo' for '--group <GROUP>': unknown group
+
+For more information, try '--help'.

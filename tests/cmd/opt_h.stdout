@@ -1,0 +1,24 @@
+Frontend for configuring/building/testing CMake projects (see --help for more details)
+
+Usage: cm [OPTIONS] <COMMAND>
+
+Commands:
+  configure   CMake Configure
+  build       CMake Build
+  lit         llvm-lit
+  activate    Print shell commands to activate a set of global options
+  deactivate  Print shell commands to deactivate global options set via activate
+  help        Print this message or the help of the given subcommand(s)
+
+Options:
+  -c, --config <CONFIG>  Build Config [default: Release]
+  -d, --debug            Shorthand for `--config Debug`
+  -#, --dry-run          Perform a dry run, only printing the generated command line
+  -q, --quirks <QUIRKS>  Disable quirk mode detection and specify one explicitly [possible values:
+                         none, llvm]
+  -h, --help             Print help (see more with '--help')
+  -V, --version          Print version
+
+CMAKE DIRECTORY OPTIONS:
+  -s, --source <SOURCE>  CMake Source Directory
+  -b, --binary <BINARY>  CMake Binary Directory

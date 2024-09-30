@@ -1,0 +1,31 @@
+CMake Configure
+
+Usage: cm configure [OPTIONS] [ARGS]...
+
+Arguments:
+  [ARGS]...  Trailing arguments to forward to cmake
+
+Options:
+  -p, --prefix-path <PREFIX_PATH>  Append to CMAKE_PREFIX_PATH [default: empty]
+  -g, --generator <GENERATOR>      Generator [default: Ninja]
+  -c, --config <CONFIG>            Build Config [default: Release]
+  -m, --makefiles                  Shorthand for `-g "Unix Makefiles"`
+  -d, --debug                      Shorthand for `--config Debug`
+  -f, --flag <FLAG>                Append to C_FLAGS and CXX_FLAGS
+  -#, --dry-run                    Perform a dry run, only printing the generated command line
+      --san                        Enable ASan and UBSan
+  -q, --quirks <QUIRKS>            Disable quirk mode detection and specify one explicitly [possible
+                                   values: none, llvm]
+  -h, --help                       Print help
+
+LLVM-SPECIFIC OPTIONS:
+      --expensive-checks
+          Enable expensive checks
+  -e, --enable-projects <ENABLE_PROJECTS>
+          Append to LLVM_ENABLE_PROJECTS [default: llvm;clang;lld]
+  -t, --targets-to-build <TARGETS_TO_BUILD>
+          Append to LLVM_TARGETS_TO_BUILD [default: all]
+
+CMAKE DIRECTORY OPTIONS:
+  -s, --source <SOURCE>  CMake Source Directory
+  -b, --binary <BINARY>  CMake Binary Directory

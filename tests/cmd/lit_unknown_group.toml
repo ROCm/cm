@@ -1,0 +1,3 @@
+bin.name = "cm"
+args = "lit -g foo"
+status = "failed"
