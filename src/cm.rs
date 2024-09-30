@@ -367,6 +367,9 @@ fn add_lit_opts_env(cmd: &mut process::Command, paths: Paths) -> Result<()> {
 }
 
 fn has_command(name: &str) -> Result<bool> {
+    if env::var("CM_TESTING").is_ok() {
+        return Ok(true);
+    }
     let status = process::Command::new(name)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
