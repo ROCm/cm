@@ -1,0 +1,34 @@
+name: ci
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  # for actions/checkout
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: -Dwarnings
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        components: clippy,rustfmt
+      - name: Format
+        uses: actions-rust-lang/rustfmt@v1
+      - name: Clippy
+        run: cargo clippy
+      - name: Check
+        run: cargo check --verbose
+      - name: Build
+        run: cargo build --verbose
+      - name: Test
+        run: cargo test --verbose
