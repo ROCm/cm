@@ -1,6 +1,6 @@
 use clap::{CommandFactory, ValueEnum};
 
-include!("src/cm/cli.rs");
+include!("src/cli.rs");
 
 fn main() -> std::io::Result<()> {
     let outdir = std::path::PathBuf::from("gen/");

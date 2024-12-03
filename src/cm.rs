@@ -1,9 +1,7 @@
 // Copyright © 2024 Advanced Micro Devices, Inc. All rights reserved.
 // SPDX-License-Identifier: MIT
 
-pub mod cli;
-
-use cli::{Activate, Build, Cli, Command, Configure, Deactivate, Lit, Quirks};
+use crate::cli::{Activate, Build, Cli, Command, Configure, Deactivate, Lit, Quirks};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Deserialize;
