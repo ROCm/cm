@@ -253,7 +253,7 @@ fn plan_lit(lit: &Lit, cli: &Cli, _quirks: Quirks, paths: Paths) -> Result<Vec<p
         ));
         return Ok(vec![cmd]);
     }
-    if let Some(Some(group)) = &lit.group {
+    if let Some(group) = &lit.group {
         let mut cmd = build_cmd(cli, paths);
         cmd.arg(group);
         if lit.update_resultdb {

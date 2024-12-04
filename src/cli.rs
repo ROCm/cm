@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: MIT
 
 use clap::{
-    builder::{ArgAction, ArgPredicate},
+    builder::{ArgAction, ArgPredicate, PossibleValue, TypedValueParser},
+    error::{ContextKind, ContextValue},
     ArgGroup, Args, Parser, Subcommand, ValueHint,
 };
 use std::ffi::OsString;
 use std::path::PathBuf;
+
+type ClapError = clap::Error;
+type ClapErrorKind = clap::error::ErrorKind;
 
 const DIR_HEADING: Option<&str> = Some("CMAKE DIRECTORY OPTIONS");
 const LLVM_HEADING: Option<&str> = Some("LLVM-SPECIFIC OPTIONS");
@@ -263,13 +267,13 @@ pub struct Lit {
           default_value_if("tests", ArgPredicate::IsPresent, Some("false")),
     )]
     pub update_resultdb: bool,
-    /// Run the named LLVM "check" test group, and (by default) update the ResultDB.
+    /// Run the named LLVM "check-*" test group, and (by default) update the ResultDB.
     ///
-    /// For known groups the name can be shortened by omitting the "check-" prefix, and only needs
-    /// to specify enough characters to unambiguously identify the test group. For example simply
-    /// "a" is enough to identify "check-all".
-    #[arg(short, long, value_parser = infer_group, group = "select")]
-    pub group: Option<std::option::Option<String>>,
+    /// For known groups ("possible values") the name can be shortened by omitting the "check-"
+    /// prefix, and only needs to specify enough characters to unambiguously identify the test
+    /// group. For example simply "a" is enough to identify "check-all".
+    #[arg(short, long, value_parser = LitGroupParser {}, group = "select")]
+    pub group: Option<String>,
     /// Only consider at most the first failing test in the ResultDB.
     #[arg(short = '1', long, group = "select")]
     pub first: bool,
@@ -296,23 +300,64 @@ pub struct Activate {}
 #[derive(Args)]
 pub struct Deactivate {}
 
-fn infer_group(arg: &str) -> ::std::result::Result<Option<String>, String> {
-    if arg.starts_with("check-") {
-        return Ok(Some(arg.to_string()));
-    }
-    let v = ["all", "llvm", "clang", "lld"]
-        .into_iter()
-        .filter(|s| s.starts_with(arg))
-        .collect::<Vec<_>>();
-    match v.len() {
-        0 => Err("unknown group".to_string()),
-        1 => Ok(Some(format!("check-{}", v[0]))),
-        _ => Err(format!("ambiguously identifies: {}", v.join(", "))),
-    }
-}
-
 #[derive(clap::ValueEnum, Clone, Copy)]
 pub enum Quirks {
     None,
     Llvm,
+}
+
+#[derive(Clone, Copy)]
+pub struct LitGroupParser {}
+
+impl LitGroupParser {
+    const KNOWN_GROUPS: [&'static str; 4] = ["all", "llvm", "clang", "lld"];
+
+    fn error(cmd: &clap::Command, arg: Option<&clap::Arg>, val: impl Into<String>) -> ClapError {
+        let mut err = ClapError::new(ClapErrorKind::InvalidValue).with_cmd(cmd);
+        if let Some(arg) = arg {
+            err.insert(
+                ContextKind::InvalidArg,
+                ContextValue::String(arg.to_string()),
+            );
+        }
+        err.insert(ContextKind::InvalidValue, ContextValue::String(val.into()));
+        // This hint about "check-*" always being legal is only present in the diagnostics so that
+        // autocomplete scripts we generate don't get confused by it. Ideally we would also report
+        // this in the "possible values" printed as part of --help but we work around this by
+        // explicitly documenting it in the relevant help text.
+        let mut valid_values = vec!["check-*".to_string()];
+        valid_values.extend(Self::KNOWN_GROUPS.into_iter().map(String::from));
+        err.insert(ContextKind::ValidValue, ContextValue::Strings(valid_values));
+        err
+    }
+}
+
+impl TypedValueParser for LitGroupParser {
+    type Value = String;
+
+    fn possible_values(&self) -> Option<Box<dyn Iterator<Item = PossibleValue>>> {
+        Some(Box::new(Self::KNOWN_GROUPS.iter().map(PossibleValue::new)))
+    }
+
+    fn parse_ref(
+        &self,
+        cmd: &clap::Command,
+        arg: Option<&clap::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, ClapError> {
+        let value = value
+            .to_str()
+            .ok_or_else(|| ClapError::new(ClapErrorKind::InvalidUtf8))?;
+        if value.starts_with("check-") {
+            return Ok(value.to_string());
+        }
+        let matching_groups = Self::KNOWN_GROUPS
+            .into_iter()
+            .filter(|s| s.starts_with(value))
+            .collect::<Vec<_>>();
+        match matching_groups[..] {
+            [unique_group] => Ok(format!("check-{}", unique_group)),
+            _ => Err(Self::error(cmd, arg, value)),
+        }
+    }
 }

@@ -42,11 +42,13 @@ Options:
           Shorthand for `--config Debug`
 
   -g, --group <GROUP>
-          Run the named LLVM "check" test group, and (by default) update the ResultDB.
+          Run the named LLVM "check-*" test group, and (by default) update the ResultDB.
           
-          For known groups the name can be shortened by omitting the "check-" prefix, and only needs
-          to specify enough characters to unambiguously identify the test group. For example simply
-          "a" is enough to identify "check-all".
+          For known groups ("possible values") the name can be shortened by omitting the "check-"
+          prefix, and only needs to specify enough characters to unambiguously identify the test
+          group. For example simply "a" is enough to identify "check-all".
+          
+          [possible values: all, llvm, clang, lld]
 
   -#, --dry-run
           Perform a dry run, only printing the generated command line
