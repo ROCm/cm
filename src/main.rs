@@ -1,6 +1,8 @@
 // Copyright © 2024 Advanced Micro Devices, Inc. All rights reserved.
 // SPDX-License-Identifier: MIT
 
+#![doc = include_str!("../README.md")]
+
 mod cli;
 mod cm;
 
