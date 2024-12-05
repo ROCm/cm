@@ -191,20 +191,25 @@ impl Cli {
 #[derive(Subcommand)]
 pub enum Command {
     /// CMake Configure
+    #[command(visible_alias = "c")]
     Configure(Configure),
     /// CMake Build
+    #[command(visible_alias = "b")]
     Build(Build),
     /// llvm-lit
+    #[command(visible_alias = "l")]
     Lit(Lit),
     /// Print shell commands to activate a set of global options
     ///
     /// Prepends the PATH environment variable with the bin subdirectory of the binary path, sets
     /// CM_SRC/CM_BIN/CM_CFG, and defines an alias for cm which uses them.
+    #[command(visible_alias = "a")]
     Activate(Activate),
     /// Print shell commands to deactivate global options set via activate
     ///
     /// Attempts to remove elements from the PATH environment variable which correspond to the
     /// active CM_BIN, unsets CM_SRC/CM_BIN/CM_CFG, and unaliases cm.
+    #[command(visible_alias = "d")]
     Deactivate(Deactivate),
 }
 
