@@ -174,7 +174,7 @@ pub struct Cli {
     #[arg(short, long, global = true)]
     pub quirks: Option<Quirks>,
     /// The subcommand
-    #[clap(subcommand)]
+    #[command(subcommand)]
     pub command: Command,
 }
 
