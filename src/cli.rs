@@ -214,6 +214,7 @@ pub enum Command {
 }
 
 #[derive(Args)]
+#[command(group = ArgGroup::new("targets").multiple(false))]
 pub struct Configure {
     /// Append to CMAKE_PREFIX_PATH [default: empty]
     #[arg(short, long)]
@@ -234,11 +235,31 @@ pub struct Configure {
     #[arg(long, help_heading = LLVM_HEADING)]
     pub expensive_checks: bool,
     /// Append to LLVM_ENABLE_PROJECTS [default: llvm;clang;lld]
+    ///
+    /// When no project is specified, the default set is used. If any project is specified the
+    /// default set is ignored and all specified projects are enabled.
     #[arg(short, long, help_heading = LLVM_HEADING)]
     pub enable_projects: Option<Vec<String>>,
     /// Append to LLVM_TARGETS_TO_BUILD [default: all]
-    #[arg(short, long, help_heading = LLVM_HEADING)]
+    ///
+    /// When no target is specified, the default set is used. If any target is specified, the
+    /// default set is ignored and all specified targets _as well as the "Native" target_ are
+    /// enabled.
+    ///
+    /// For example, on an x86_64 host machine, the following command-line will enable X86 and
+    /// AMDGPU:
+    ///
+    ///     $ cm configure -t AMDGPU
+    ///
+    /// To disable the implicit inclusion of the "Native" target, use the
+    /// -T/--targets-to-build-alt flag instead.
+    #[arg(short, long, group = "targets", help_heading = LLVM_HEADING)]
     pub targets_to_build: Option<Vec<String>>,
+    /// Append to LLVM_TARGETS_TO_BUILD wihout implicit "Native" target [default: all]
+    ///
+    /// See -t/--targets-to-build help for more details
+    #[arg(short = 'T', long, group = "targets", help_heading = LLVM_HEADING)]
+    pub targets_to_build_alt: Option<Vec<String>>,
     /// Trailing arguments to forward to cmake
     pub args: Vec<OsString>,
 }

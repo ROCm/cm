@@ -177,13 +177,16 @@ fn plan_configure(
             .as_ref()
             .map_or("llvm;clang;lld".into(), |v| v.join(";"))
     ));
-    cmd.arg(format!(
-        "-DLLVM_TARGETS_TO_BUILD={}",
-        configure
-            .targets_to_build
-            .as_ref()
-            .map_or("all".into(), |v| v.join(";"))
-    ));
+    let targets = if let Some(targets) = &configure.targets_to_build {
+        let mut t = vec!["Native".into()];
+        t.extend(targets.iter().cloned());
+        t.join(";")
+    } else if let Some(targets) = &configure.targets_to_build_alt {
+        targets.join(";")
+    } else {
+        "all".into()
+    };
+    cmd.arg(format!("-DLLVM_TARGETS_TO_BUILD={}", targets));
     let flags = flags
         .iter()
         .chain(configure.flag.iter())

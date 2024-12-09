@@ -3,29 +3,79 @@ CMake Configure
 Usage: cm configure [OPTIONS] [ARGS]...
 
 Arguments:
-  [ARGS]...  Trailing arguments to forward to cmake
+  [ARGS]...
+          Trailing arguments to forward to cmake
 
 Options:
-  -p, --prefix-path <PREFIX_PATH>  Append to CMAKE_PREFIX_PATH [default: empty]
-  -g, --generator <GENERATOR>      Generator [default: Ninja]
-  -c, --config <CONFIG>            Build Config [default: Release]
-  -m, --makefiles                  Shorthand for `-g "Unix Makefiles"`
-  -d, --debug                      Shorthand for `--config Debug`
-  -f, --flag <FLAG>                Append to C_FLAGS and CXX_FLAGS
-  -#, --dry-run                    Perform a dry run, only printing the generated command line
-      --san                        Enable ASan and UBSan
-  -q, --quirks <QUIRKS>            Disable quirk mode detection and specify one explicitly [possible
-                                   values: none, llvm]
-  -h, --help                       Print help
+  -p, --prefix-path <PREFIX_PATH>
+          Append to CMAKE_PREFIX_PATH [default: empty]
+
+  -g, --generator <GENERATOR>
+          Generator
+          
+          [default: Ninja]
+
+  -c, --config <CONFIG>
+          Build Config
+          
+          [default: Release]
+
+  -m, --makefiles
+          Shorthand for `-g "Unix Makefiles"`
+
+  -d, --debug
+          Shorthand for `--config Debug`
+
+  -f, --flag <FLAG>
+          Append to C_FLAGS and CXX_FLAGS
+
+  -#, --dry-run
+          Perform a dry run, only printing the generated command line
+
+      --san
+          Enable ASan and UBSan
+
+  -q, --quirks <QUIRKS>
+          Disable quirk mode detection and specify one explicitly
+          
+          [possible values: none, llvm]
+
+  -h, --help
+          Print help (see a summary with '-h')
 
 LLVM-SPECIFIC OPTIONS:
       --expensive-checks
           Enable expensive checks
+
   -e, --enable-projects <ENABLE_PROJECTS>
           Append to LLVM_ENABLE_PROJECTS [default: llvm;clang;lld]
+          
+          When no project is specified, the default set is used. If any project is specified the
+          default set is ignored and all specified projects are enabled.
+
   -t, --targets-to-build <TARGETS_TO_BUILD>
           Append to LLVM_TARGETS_TO_BUILD [default: all]
+          
+          When no target is specified, the default set is used. If any target is specified, the
+          default set is ignored and all specified targets _as well as the "Native" target_ are
+          enabled.
+          
+          For example, on an x86_64 host machine, the following command-line will enable X86 and
+          AMDGPU:
+          
+          $ cm configure -t AMDGPU
+          
+          To disable the implicit inclusion of the "Native" target, use the
+          -T/--targets-to-build-alt flag instead.
+
+  -T, --targets-to-build-alt <TARGETS_TO_BUILD_ALT>
+          Append to LLVM_TARGETS_TO_BUILD wihout implicit "Native" target [default: all]
+          
+          See -t/--targets-to-build help for more details
 
 CMAKE DIRECTORY OPTIONS:
-  -s, --source <SOURCE>  CMake Source Directory
-  -b, --binary <BINARY>  CMake Binary Directory
+  -s, --source <SOURCE>
+          CMake Source Directory
+
+  -b, --binary <BINARY>
+          CMake Binary Directory
