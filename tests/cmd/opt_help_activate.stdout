@@ -7,7 +7,7 @@ Usage: cm activate [OPTIONS]
 
 Options:
   -c, --config <CONFIG>
-          Build Config
+          CMake Build Config
           
           [default: Release]
 

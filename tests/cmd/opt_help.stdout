@@ -22,33 +22,34 @@ These tasks are also not on equal footing, with configure being the "default"
 and build being a pseudo-subcommand "--build".
 
 This tool exposes the "configuration" and "build" tasks as subcommands directly, and give them
-a common interface for specifying the source (-s, --source) and binary (-b, --binary) paths, as
-well as the config (-c, --config).
+a common interface for specifying the source (-s/--source) and binary (-b/--binary) paths, as
+well as the config (-c/--config).
 
 Beyond the tools themselves, individual projects also use cmake in quirky ways. In particular,
-LLVM makes some strange choices:
+LLVM makes some strange choices, informed by historical baggage and gaps in previous version of
+CMake, including:
 
 * The root "CMakeLists.txt" is in the "llvm/" directory, not at the root of the project.
 
 * Does not respect CMAKE_{C,CXX}_COMPILER_LAUNCHER, instead invents LLVM_CCACHE_BUILD.
 
-It also has many knobs whose defaults are not appropriate for development, such as disabling
-assertions by default, and it has many targets and optional projects which can be
-enabled/disabled with particular cache variables.
+LLVM also has many knobs whose defaults are not appropriate for development, such as disabling
+assertions by default in Release builds, and it has many targets and optional projects which
+can be enabled/disabled with particular cache variables.
 
 To make LLVM behave like "the ideal project" as much as possible, this tool expects the source
 to still be specified as the root llvm-project repository. By default, the tool will detect
 that LLVM is being compiled and update the true source directory accordingly, as well as adjust
 many default options. There are also flags for LLVM-specific concepts like TARGETS_TO_BUILD and
-EXPENSIVE_CHECKS to simplify common configuration tweaks.
+EXPENSIVE_CHECKS to simplify common configuration tweaks and provide concise autocompletion.
 
 Another subcommand "lit" provides a nicer interface to llvm-lit (and cmake --build, to
 implement the -g/--group flag). The "lit" subcommand optionally ensures that a ResultDB file
 called "lit.json" is written to the binary path when tests are run, allowing subsequent runs to
 recall which tests failed. With no arguments or flags specifying which tests to run, the
 subcommand will run all tests marked as failed in the ResultDB. Repeatedly invoking the
-subcommand can thus incrementally "resolve" tests as they are updated, removing them from the
-list of failing tests until it is empty. This behavior is controlled by the
+subcommand can thus incrementally "resolve" tests as the ResultDB is updated, removing them
+from the list of failing tests until it is empty. This behavior is controlled by the
 -u/--update-resulbdb[=<BOOL>] flag which is enabled by default unless a particular subset of
 tests is specified (via the -1/--first flag or TESTS arguments). The developer can then focus
 on specific failing tests without losing track of the remaining failing tests, and can record
@@ -62,7 +63,7 @@ environment to "enter" and "exit" a set of global "cm" options. The "activate" c
 variables for the source directory ("CM_SRC"), binary directory ("CM_BIN"), and the
 configuration ("CM_CFG"), as well as an alias for "cm" which uses them. To simplify executing
 binaries in the binary directory it also prepends the "bin" subdirectory in the binary path to
-the "PATH" environment variable. The "deactivate" command attempts to "undo" all of the effects
+the "PATH" environment variable. The "deactivate" command attempts to undo all of the effects
 of "activate". The output of each subcommand is intended to be passed as arguments to "eval".
 Neither subcommand handles all edge cases, nor do they support a wide gamut of shells (yet).
 One notable case they don't handle gracefully is an empty PATH.
@@ -103,9 +104,9 @@ With most shells, these values can be factored out with aliases:
     $ # ...
     $ cm l
 
-For the bash shell the "activate" subcommand automates this aliasing, updates "PATH" to search
-the bin subdirectory in the binary path, and also defines the environment variables "CM_SRC",
-"CM_BIN", and "CM_CFG" for use in scripts:
+For the bash and zsh shells the "activate" subcommand automates this aliasing, updates "PATH"
+to search the bin subdirectory in the binary path, and also defines the environment variables
+"CM_SRC", "CM_BIN", and "CM_CFG" for use in scripts and prompts:
 
     $ type cm
     cm is /usr/bin/cm
@@ -145,7 +146,7 @@ Commands:
 
 Options:
   -c, --config <CONFIG>
-          Build Config
+          CMake Build Config
           
           [default: Release]
 

@@ -39,33 +39,34 @@ const LLVM_HEADING: Option<&str> = Some("LLVM-SPECIFIC OPTIONS");
 /// and build being a pseudo-subcommand "--build".
 ///
 /// This tool exposes the "configuration" and "build" tasks as subcommands directly, and give them
-/// a common interface for specifying the source (-s, --source) and binary (-b, --binary) paths, as
-/// well as the config (-c, --config).
+/// a common interface for specifying the source (-s/--source) and binary (-b/--binary) paths, as
+/// well as the config (-c/--config).
 ///
 /// Beyond the tools themselves, individual projects also use cmake in quirky ways. In particular,
-/// LLVM makes some strange choices:
+/// LLVM makes some strange choices, informed by historical baggage and gaps in previous version of
+/// CMake, including:
 ///
 /// * The root "CMakeLists.txt" is in the "llvm/" directory, not at the root of the project.
 ///
 /// * Does not respect CMAKE_{C,CXX}_COMPILER_LAUNCHER, instead invents LLVM_CCACHE_BUILD.
 ///
-/// It also has many knobs whose defaults are not appropriate for development, such as disabling
-/// assertions by default, and it has many targets and optional projects which can be
-/// enabled/disabled with particular cache variables.
+/// LLVM also has many knobs whose defaults are not appropriate for development, such as disabling
+/// assertions by default in Release builds, and it has many targets and optional projects which
+/// can be enabled/disabled with particular cache variables.
 ///
 /// To make LLVM behave like "the ideal project" as much as possible, this tool expects the source
 /// to still be specified as the root llvm-project repository. By default, the tool will detect
 /// that LLVM is being compiled and update the true source directory accordingly, as well as adjust
 /// many default options. There are also flags for LLVM-specific concepts like TARGETS_TO_BUILD and
-/// EXPENSIVE_CHECKS to simplify common configuration tweaks.
+/// EXPENSIVE_CHECKS to simplify common configuration tweaks and provide concise autocompletion.
 ///
 /// Another subcommand "lit" provides a nicer interface to llvm-lit (and cmake --build, to
 /// implement the -g/--group flag). The "lit" subcommand optionally ensures that a ResultDB file
 /// called "lit.json" is written to the binary path when tests are run, allowing subsequent runs to
 /// recall which tests failed. With no arguments or flags specifying which tests to run, the
 /// subcommand will run all tests marked as failed in the ResultDB. Repeatedly invoking the
-/// subcommand can thus incrementally "resolve" tests as they are updated, removing them from the
-/// list of failing tests until it is empty. This behavior is controlled by the
+/// subcommand can thus incrementally "resolve" tests as the ResultDB is updated, removing them
+/// from the list of failing tests until it is empty. This behavior is controlled by the
 /// -u/--update-resulbdb[=<BOOL>] flag which is enabled by default unless a particular subset of
 /// tests is specified (via the -1/--first flag or TESTS arguments). The developer can then focus
 /// on specific failing tests without losing track of the remaining failing tests, and can record
@@ -79,7 +80,7 @@ const LLVM_HEADING: Option<&str> = Some("LLVM-SPECIFIC OPTIONS");
 /// variables for the source directory ("CM_SRC"), binary directory ("CM_BIN"), and the
 /// configuration ("CM_CFG"), as well as an alias for "cm" which uses them. To simplify executing
 /// binaries in the binary directory it also prepends the "bin" subdirectory in the binary path to
-/// the "PATH" environment variable. The "deactivate" command attempts to "undo" all of the effects
+/// the "PATH" environment variable. The "deactivate" command attempts to undo all of the effects
 /// of "activate". The output of each subcommand is intended to be passed as arguments to "eval".
 /// Neither subcommand handles all edge cases, nor do they support a wide gamut of shells (yet).
 /// One notable case they don't handle gracefully is an empty PATH.
@@ -120,9 +121,9 @@ const LLVM_HEADING: Option<&str> = Some("LLVM-SPECIFIC OPTIONS");
 ///     $ # ...
 ///     $ cm l
 ///
-/// For the bash shell the "activate" subcommand automates this aliasing, updates "PATH" to search
-/// the bin subdirectory in the binary path, and also defines the environment variables "CM_SRC",
-/// "CM_BIN", and "CM_CFG" for use in scripts:
+/// For the bash and zsh shells the "activate" subcommand automates this aliasing, updates "PATH"
+/// to search the bin subdirectory in the binary path, and also defines the environment variables
+/// "CM_SRC", "CM_BIN", and "CM_CFG" for use in scripts and prompts:
 ///
 ///     $ type cm
 ///     cm is /usr/bin/cm
@@ -161,7 +162,7 @@ pub struct Cli {
     /// CMake Binary Directory
     #[arg(short, long, value_hint = ValueHint::DirPath, global = true, help_heading = DIR_HEADING)]
     pub binary: Option<PathBuf>,
-    /// Build Config
+    /// CMake Build Config
     #[arg(short, long, default_value = "Release", group = "conf", global = true)]
     pub config: String,
     /// Shorthand for `--config Debug`
@@ -219,7 +220,7 @@ pub struct Configure {
     /// Append to CMAKE_PREFIX_PATH [default: empty]
     #[arg(short, long)]
     pub prefix_path: Vec<String>,
-    /// Generator
+    /// CMake Generator
     #[arg(short, long, default_value = "Ninja", group = "gen")]
     pub generator: String,
     /// Shorthand for `-g "Unix Makefiles"`
@@ -238,7 +239,7 @@ pub struct Configure {
     ///
     /// When no project is specified, the default set is used. If any project is specified the
     /// default set is ignored and all specified projects are enabled.
-    #[arg(short, long, help_heading = LLVM_HEADING)]
+    #[arg(short, long, help_heading = LLVM_HEADING, value_parser = FuzzyParser::new(include!("../values/llvm_all_projects.in"), None))]
     pub enable_projects: Option<Vec<String>>,
     /// Append to LLVM_TARGETS_TO_BUILD [default: all]
     ///
@@ -253,12 +254,12 @@ pub struct Configure {
     ///
     /// To disable the implicit inclusion of the "Native" target, use the
     /// -T/--targets-to-build-alt flag instead.
-    #[arg(short, long, group = "targets", help_heading = LLVM_HEADING)]
+    #[arg(short, long, group = "targets", help_heading = LLVM_HEADING, value_parser = FuzzyParser::new(include!("../values/llvm_all_targets.in"), None))]
     pub targets_to_build: Option<Vec<String>>,
     /// Append to LLVM_TARGETS_TO_BUILD wihout implicit "Native" target [default: all]
     ///
     /// See -t/--targets-to-build help for more details
-    #[arg(short = 'T', long, group = "targets", help_heading = LLVM_HEADING)]
+    #[arg(short = 'T', long, group = "targets", help_heading = LLVM_HEADING, value_parser = FuzzyParser::new(include!("../values/llvm_all_targets_alt.in"), None))]
     pub targets_to_build_alt: Option<Vec<String>>,
     /// Trailing arguments to forward to cmake
     pub args: Vec<OsString>,
@@ -297,8 +298,9 @@ pub struct Lit {
     ///
     /// For known groups ("possible values") the name can be shortened by omitting the "check-"
     /// prefix, and only needs to specify enough characters to unambiguously identify the test
-    /// group. For example simply "a" is enough to identify "check-all".
-    #[arg(short, long, value_parser = LitGroupParser {}, group = "select")]
+    /// group. For example, simply "a" is enough to identify "check-all". For all other groups
+    /// the full name including the "check-" prefix must be specified.
+    #[arg(short, long, group = "select", value_parser = FuzzyParser::new(["all", "llvm", "clang", "lld"], Some("check-")))]
     pub group: Option<String>,
     /// Only consider at most the first failing test in the ResultDB.
     #[arg(short = '1', long, group = "select")]
@@ -332,13 +334,29 @@ pub enum Quirks {
     Llvm,
 }
 
-#[derive(Clone, Copy)]
-pub struct LitGroupParser {}
+#[derive(Clone)]
+pub struct FuzzyParser {
+    known_values: Vec<&'static str>,
+    inferrable_prefix: Option<&'static str>,
+}
 
-impl LitGroupParser {
-    const KNOWN_GROUPS: [&'static str; 4] = ["all", "llvm", "clang", "lld"];
+impl FuzzyParser {
+    fn new(
+        known_values: impl Into<Vec<&'static str>>,
+        inferrable_prefix: Option<&'static str>,
+    ) -> Self {
+        Self {
+            known_values: known_values.into(),
+            inferrable_prefix,
+        }
+    }
 
-    fn error(cmd: &clap::Command, arg: Option<&clap::Arg>, val: impl Into<String>) -> ClapError {
+    fn error(
+        &self,
+        cmd: &clap::Command,
+        arg: Option<&clap::Arg>,
+        val: impl Into<String>,
+    ) -> ClapError {
         let mut err = ClapError::new(ClapErrorKind::InvalidValue).with_cmd(cmd);
         if let Some(arg) = arg {
             err.insert(
@@ -347,22 +365,56 @@ impl LitGroupParser {
             );
         }
         err.insert(ContextKind::InvalidValue, ContextValue::String(val.into()));
-        // This hint about "check-*" always being legal is only present in the diagnostics so that
-        // autocomplete scripts we generate don't get confused by it. Ideally we would also report
-        // this in the "possible values" printed as part of --help but we work around this by
-        // explicitly documenting it in the relevant help text.
-        let mut valid_values = vec!["check-*".to_string()];
-        valid_values.extend(Self::KNOWN_GROUPS.into_iter().map(String::from));
+        // We mention the inferrable_prefix here to make it clear that there is a "namespace" where
+        // any string is legal, alongside the incomplete set of known values. We do not include
+        // this in the possible_values proper as we it would confuse the autocomplete generation.
+        let mut valid_values = Vec::new();
+        if let Some(prefix) = self.inferrable_prefix {
+            valid_values.push(format!("{}*", prefix));
+        }
+        valid_values.extend(self.known_values.iter().copied().map(String::from));
         err.insert(ContextKind::ValidValue, ContextValue::Strings(valid_values));
         err
     }
+
+    fn parse_ref_without_inferrable_prefix(
+        &self,
+        _cmd: &clap::Command,
+        _arg: Option<&clap::Arg>,
+        value: &str,
+    ) -> Result<String, ClapError> {
+        return Ok(value.to_string());
+    }
+
+    fn parse_ref_with_inferrable_prefix(
+        &self,
+        cmd: &clap::Command,
+        arg: Option<&clap::Arg>,
+        value: &str,
+        inferrable_prefix: &str,
+    ) -> Result<String, ClapError> {
+        if value.starts_with(inferrable_prefix) {
+            return Ok(value.to_string());
+        }
+        let matching_groups = self
+            .known_values
+            .iter()
+            .filter(|s| s.starts_with(value))
+            .collect::<Vec<_>>();
+        match matching_groups[..] {
+            [unique_group] => Ok(format!("{}{}", inferrable_prefix, unique_group)),
+            _ => Err(self.error(cmd, arg, value)),
+        }
+    }
 }
 
-impl TypedValueParser for LitGroupParser {
+impl TypedValueParser for FuzzyParser {
     type Value = String;
 
-    fn possible_values(&self) -> Option<Box<dyn Iterator<Item = PossibleValue>>> {
-        Some(Box::new(Self::KNOWN_GROUPS.iter().map(PossibleValue::new)))
+    fn possible_values(&self) -> Option<Box<dyn Iterator<Item = PossibleValue> + '_>> {
+        Some(Box::new(
+            self.known_values.iter().copied().map(PossibleValue::new),
+        ))
     }
 
     fn parse_ref(
@@ -374,16 +426,11 @@ impl TypedValueParser for LitGroupParser {
         let value = value
             .to_str()
             .ok_or_else(|| ClapError::new(ClapErrorKind::InvalidUtf8))?;
-        if value.starts_with("check-") {
-            return Ok(value.to_string());
-        }
-        let matching_groups = Self::KNOWN_GROUPS
-            .into_iter()
-            .filter(|s| s.starts_with(value))
-            .collect::<Vec<_>>();
-        match matching_groups[..] {
-            [unique_group] => Ok(format!("check-{}", unique_group)),
-            _ => Err(Self::error(cmd, arg, value)),
+        match self.inferrable_prefix {
+            None => self.parse_ref_without_inferrable_prefix(cmd, arg, value),
+            Some(inferrable_prefix) => {
+                self.parse_ref_with_inferrable_prefix(cmd, arg, value, inferrable_prefix)
+            }
         }
     }
 }

@@ -22,7 +22,7 @@ Options:
           Print a command-line which exports LIT_XFAIL to the tests that would be run
 
   -c, --config <CONFIG>
-          Build Config
+          CMake Build Config
           
           [default: Release]
 
@@ -46,7 +46,8 @@ Options:
           
           For known groups ("possible values") the name can be shortened by omitting the "check-"
           prefix, and only needs to specify enough characters to unambiguously identify the test
-          group. For example simply "a" is enough to identify "check-all".
+          group. For example, simply "a" is enough to identify "check-all". For all other groups the
+          full name including the "check-" prefix must be specified.
           
           [possible values: all, llvm, clang, lld]
 

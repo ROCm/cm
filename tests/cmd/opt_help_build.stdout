@@ -6,7 +6,7 @@ Arguments:
   [ARGS]...  Trailing arguments to forward to build tool
 
 Options:
-  -c, --config <CONFIG>  Build Config [default: Release]
+  -c, --config <CONFIG>  CMake Build Config [default: Release]
   -d, --debug            Shorthand for `--config Debug`
   -#, --dry-run          Perform a dry run, only printing the generated command line
   -q, --quirks <QUIRKS>  Disable quirk mode detection and specify one explicitly [possible values:

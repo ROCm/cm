@@ -11,12 +11,12 @@ Options:
           Append to CMAKE_PREFIX_PATH [default: empty]
 
   -g, --generator <GENERATOR>
-          Generator
+          CMake Generator
           
           [default: Ninja]
 
   -c, --config <CONFIG>
-          Build Config
+          CMake Build Config
           
           [default: Release]
 
@@ -52,6 +52,9 @@ LLVM-SPECIFIC OPTIONS:
           
           When no project is specified, the default set is used. If any project is specified the
           default set is ignored and all specified projects are enabled.
+          
+          [possible values: bolt, clang, clang-tools-extra, compiler-rt, cross-project-tests, libc,
+          libclc, lld, lldb, mlir, openmp, polly, pstl]
 
   -t, --targets-to-build <TARGETS_TO_BUILD>
           Append to LLVM_TARGETS_TO_BUILD [default: all]
@@ -67,11 +70,17 @@ LLVM-SPECIFIC OPTIONS:
           
           To disable the implicit inclusion of the "Native" target, use the
           -T/--targets-to-build-alt flag instead.
+          
+          [possible values: AArch64, AMDGPU, ARM, AVR, BPF, Hexagon, Lanai, LoongArch, Mips, MSP430,
+          NVPTX, PowerPC, RISCV, Sparc, SystemZ, VE, WebAssembly, X86, XCore]
 
   -T, --targets-to-build-alt <TARGETS_TO_BUILD_ALT>
           Append to LLVM_TARGETS_TO_BUILD wihout implicit "Native" target [default: all]
           
           See -t/--targets-to-build help for more details
+          
+          [possible values: Native, AArch64, AMDGPU, ARM, AVR, BPF, Hexagon, Lanai, LoongArch, Mips,
+          MSP430, NVPTX, PowerPC, RISCV, Sparc, SystemZ, VE, WebAssembly, X86, XCore]
 
 CMAKE DIRECTORY OPTIONS:
   -s, --source <SOURCE>
