@@ -383,7 +383,7 @@ impl FuzzyParser {
         _arg: Option<&clap::Arg>,
         value: &str,
     ) -> Result<String, ClapError> {
-        return Ok(value.to_string());
+        Ok(value.to_string())
     }
 
     fn parse_ref_with_inferrable_prefix(
