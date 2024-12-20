@@ -3,6 +3,7 @@ name = "cm"
 version = "0.1.0"
 license = "MIT"
 edition = "2021"
+description = "Frontend for configuring/building/testing CMake projects."
 build = "build.rs"
 
 [package.metadata.deb]
@@ -12,7 +13,7 @@ assets = [
     ["target/release/cm", "usr/bin/cm", "755"],
     ["gen/*.1", "usr/share/man/man1/", "644"],
     ["gen/cm.bash", "usr/share/bash-completion/completions/cm", "644"],
-    ["gen/cm.fish", "usr/share/fish/completions/cm", "644"],
+    ["gen/cm.fish", "usr/share/fish/vendor_completions.d/cm", "644"],
     ["gen/_cm", "usr/share/zsh/vendor-completions/_cm", "644"],
 ]
 

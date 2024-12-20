@@ -6,5 +6,5 @@ Provides a common interface with saner defaults for working with CMake
 projects, including special support for smoothing over quirks when compiling
 LLVM.
 
-For more details see the doc-comment in `src/cm/cli.rs` or the output of `cm
---help`.
+For more details see the output of `cm --help`, or the doc-comment in
+`src/cm/cli.rs`.
