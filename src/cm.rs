@@ -5,7 +5,7 @@ use crate::cli::{Activate, Build, Cli, Command, Configure, Deactivate, Lit, Quir
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Deserialize;
-use shell_quote::bash::quote;
+use shell_quote::{Bash, Quotable, QuoteInto};
 use std::env;
 use std::error;
 use std::ffi::OsString;
@@ -320,7 +320,7 @@ fn plan_activate(
     );
     cmd.arg(quote(paths.source));
     cmd.arg(quote(paths.binary));
-    cmd.arg(quote(cli.final_config()));
+    cmd.arg(quote(&cli.final_config()));
     Ok(vec![cmd])
 }
 
@@ -410,6 +410,13 @@ fn detect_quirks(cli: &Cli) -> Quirks {
     } else {
         Quirks::None
     }
+}
+
+/// Helper to quote any Quotable into OsString, which process::Command works in terms of.
+fn quote<'a, S: ?Sized + Into<Quotable<'a>>>(s: S) -> OsString {
+    let mut out = OsString::new();
+    Bash::quote_into(s.into(), &mut out);
+    out
 }
 
 pub fn cm(cli: Cli) -> Result<()> {
