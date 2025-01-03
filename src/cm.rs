@@ -413,7 +413,7 @@ fn detect_quirks(cli: &Cli) -> Quirks {
 }
 
 /// Helper to quote any Quotable into OsString, which process::Command works in terms of.
-fn quote<'a, S: ?Sized + Into<Quotable<'a>>>(s: S) -> OsString {
+fn quote<'a, S: Into<Quotable<'a>>>(s: S) -> OsString {
     let mut out = OsString::new();
     Bash::quote_into(s.into(), &mut out);
     out
