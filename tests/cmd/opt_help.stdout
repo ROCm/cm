@@ -60,13 +60,13 @@ The "lit" subcommand will also manage the FILECHECK_OPTS environment variable to
 
 Finally, the subcommands "activate" and "deactivate" print shell commands to modify the shell
 environment to "enter" and "exit" a set of global "cm" options. The "activate" command sets
-variables for the source directory ("CM_SRC"), binary directory ("CM_BIN"), and the
-configuration ("CM_CFG"), as well as an alias for "cm" which uses them. To simplify executing
-binaries in the binary directory it also prepends the "bin" subdirectory in the binary path to
-the "PATH" environment variable. The "deactivate" command attempts to undo all of the effects
-of "activate". The output of each subcommand is intended to be passed as arguments to "eval".
-Neither subcommand handles all edge cases, nor do they support a wide gamut of shells (yet).
-One notable case they don't handle gracefully is an empty PATH.
+variables for the source directory ("CM_SRC"), binary directory ("CM_BIN"), configuration
+("CM_CFG"), and quirks mode ("CM_QUIRKS") as well as an alias for "cm" which uses them. To
+simplify executing binaries in the binary directory it also prepends the "bin" subdirectory in
+the binary path to the "PATH" environment variable. The "deactivate" command attempts to undo
+all of the effects of "activate". The output of each subcommand is intended to be passed as
+arguments to "eval". Neither subcommand handles all edge cases, nor do they support a wide
+gamut of shells (yet). One notable case they don't handle gracefully is an empty PATH.
 
 Typical usage of the tool involves leaving a shell parked at the top-level of the llvm-project
 and running subcommands (note that the subcommand can be abbreviated):

@@ -1,7 +1,7 @@
 Print shell commands to deactivate global options set via activate
 
 Attempts to remove elements from the PATH environment variable which correspond to the active
-CM_BIN, unsets CM_SRC/CM_BIN/CM_CFG, and unaliases cm.
+CM_BIN, unsets CM_SRC/CM_BIN/CM_CFG/CM_QUIRKS, and unaliases cm.
 
 Usage: cm deactivate [OPTIONS]
 

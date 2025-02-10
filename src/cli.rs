@@ -7,6 +7,7 @@ use clap::{
     ArgGroup, Args, Parser, Subcommand, ValueHint,
 };
 use std::ffi::OsString;
+use std::fmt;
 use std::path::PathBuf;
 
 type ClapError = clap::Error;
@@ -77,13 +78,13 @@ const LLVM_HEADING: Option<&str> = Some("LLVM-SPECIFIC OPTIONS");
 ///
 /// Finally, the subcommands "activate" and "deactivate" print shell commands to modify the shell
 /// environment to "enter" and "exit" a set of global "cm" options. The "activate" command sets
-/// variables for the source directory ("CM_SRC"), binary directory ("CM_BIN"), and the
-/// configuration ("CM_CFG"), as well as an alias for "cm" which uses them. To simplify executing
-/// binaries in the binary directory it also prepends the "bin" subdirectory in the binary path to
-/// the "PATH" environment variable. The "deactivate" command attempts to undo all of the effects
-/// of "activate". The output of each subcommand is intended to be passed as arguments to "eval".
-/// Neither subcommand handles all edge cases, nor do they support a wide gamut of shells (yet).
-/// One notable case they don't handle gracefully is an empty PATH.
+/// variables for the source directory ("CM_SRC"), binary directory ("CM_BIN"), configuration
+/// ("CM_CFG"), and quirks mode ("CM_QUIRKS") as well as an alias for "cm" which uses them. To
+/// simplify executing binaries in the binary directory it also prepends the "bin" subdirectory in
+/// the binary path to the "PATH" environment variable. The "deactivate" command attempts to undo
+/// all of the effects of "activate". The output of each subcommand is intended to be passed as
+/// arguments to "eval". Neither subcommand handles all edge cases, nor do they support a wide
+/// gamut of shells (yet). One notable case they don't handle gracefully is an empty PATH.
 ///
 /// Typical usage of the tool involves leaving a shell parked at the top-level of the llvm-project
 /// and running subcommands (note that the subcommand can be abbreviated):
@@ -203,13 +204,13 @@ pub enum Command {
     /// Print shell commands to activate a set of global options
     ///
     /// Prepends the PATH environment variable with the bin subdirectory of the binary path, sets
-    /// CM_SRC/CM_BIN/CM_CFG, and defines an alias for cm which uses them.
+    /// CM_SRC/CM_BIN/CM_CFG/CM_QUIRKS, and defines an alias for cm which uses them.
     #[command(visible_alias = "a")]
     Activate(Activate),
     /// Print shell commands to deactivate global options set via activate
     ///
     /// Attempts to remove elements from the PATH environment variable which correspond to the
-    /// active CM_BIN, unsets CM_SRC/CM_BIN/CM_CFG, and unaliases cm.
+    /// active CM_BIN, unsets CM_SRC/CM_BIN/CM_CFG/CM_QUIRKS, and unaliases cm.
     #[command(visible_alias = "d")]
     Deactivate(Deactivate),
 }
@@ -332,6 +333,16 @@ pub struct Deactivate {}
 pub enum Quirks {
     None,
     Llvm,
+}
+
+// FIXME: Unsure how to hook into clap derive ValueEnum naming rather than add this explicitly.
+impl fmt::Display for Quirks {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Quirks::None => write!(f, "none"),
+            Quirks::Llvm => write!(f, "llvm"),
+        }
+    }
 }
 
 #[derive(Clone)]

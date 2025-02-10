@@ -308,19 +308,20 @@ fn plan_lit(lit: &Lit, cli: &Cli, _quirks: Quirks, paths: Paths) -> Result<Vec<p
 fn plan_activate(
     _activate: &Activate,
     cli: &Cli,
-    _quirks: Quirks,
+    quirks: Quirks,
     paths: Paths,
 ) -> Result<Vec<process::Command>> {
     let mut cmd = process::Command::new("printf");
     cmd.arg(
-        "CM_SRC=%s CM_BIN=%s CM_CFG=%s;\\n\
-        export CM_SRC CM_BIN CM_CFG;\\n\
+        "CM_SRC=%s CM_BIN=%s CM_CFG=%s CM_QUIRKS=%s;\\n\
+        export CM_SRC CM_BIN CM_CFG CM_QUIRKS;\\n\
         PATH=\"$CM_BIN/bin:$PATH\";\\n\
-        alias cm='cm -s \"$CM_SRC\" -b \"$CM_BIN\" -c \"$CM_CFG\"';\\n",
+        alias cm='cm -s \"$CM_SRC\" -b \"$CM_BIN\" -c \"$CM_CFG\" -q \"$CM_QUIRKS\"';\\n",
     );
     cmd.arg(quote(paths.source));
     cmd.arg(quote(paths.binary));
     cmd.arg(quote(&cli.final_config()));
+    cmd.arg(quote(&quirks.to_string()));
     Ok(vec![cmd])
 }
 
@@ -334,7 +335,7 @@ fn plan_deactivate(
     cmd.arg(
         "unalias cm;\\n\
         [ -z \"$CM_BIN\" ] || PATH=\"${PATH/$CM_BIN\\/bin:/}\";\\n\
-        unset -v CM_SRC CM_BIN CM_CFG;\\n",
+        unset -v CM_SRC CM_BIN CM_CFG CM_QUIRKS;\\n",
     );
     Ok(vec![cmd])
 }

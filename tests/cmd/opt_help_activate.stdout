@@ -1,7 +1,7 @@
 Print shell commands to activate a set of global options
 
 Prepends the PATH environment variable with the bin subdirectory of the binary path, sets
-CM_SRC/CM_BIN/CM_CFG, and defines an alias for cm which uses them.
+CM_SRC/CM_BIN/CM_CFG/CM_QUIRKS, and defines an alias for cm which uses them.
 
 Usage: cm activate [OPTIONS]
 
