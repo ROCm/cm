@@ -1,10 +1,178 @@
 # cm
+```text
+Frontend for configuring/building/testing CMake projects (see --help for more details)
 
-Frontend for configuring/building/testing CMake projects.
+Provides a common interface with saner defaults for working with CMake projects, including
+special support for smoothing over quirks when compiling LLVM.
 
-Provides a common interface with saner defaults for working with CMake
-projects, including special support for smoothing over quirks when compiling
-LLVM.
+The default cmake command-line presents multiple inconsistent interfaces for related tasks,
+namely:
 
-For more details see the output of `cm --help`, or the doc-comment in
-`src/cm/cli.rs`.
+* The configure step generally requires -S for specifying the "source" path and -B for
+  specifying the "build" path (also referred to as the "binary" path in some places).
+
+* The build step either requires directly invoking the build tool, with its own unique syntax
+  for specifying the build path again, or:
+
+* The built-in, generic interface to the build tool in cmake requires a _different_ syntax for
+  specifying the build path, no longer accepting -B at all.
+
+Other tasks, like specifying the type of build (Release, Debug, RelWithDbgInfo, ...), are also
+needlessly fragmented between configuration (-DCMAKE_BUILD_TYPE=...) and build (--config ...).
+
+These tasks are also not on equal footing, with configure being the "default"
+and build being a pseudo-subcommand "--build".
+
+This tool exposes the "configuration" and "build" tasks as subcommands directly, and give them
+a common interface for specifying the source (-s/--source) and binary (-b/--binary) paths, as
+well as the config (-c/--config).
+
+Beyond the tools themselves, individual projects also use cmake in quirky ways. In particular,
+LLVM makes some strange choices, informed by historical baggage and gaps in previous version of
+CMake, including:
+
+* The root "CMakeLists.txt" is in the "llvm/" directory, not at the root of the project.
+
+* Does not respect CMAKE_{C,CXX}_COMPILER_LAUNCHER, instead invents LLVM_CCACHE_BUILD.
+
+LLVM also has many knobs whose defaults are not appropriate for development, such as disabling
+assertions by default in Release builds, and it has many targets and optional projects which
+can be enabled/disabled with particular cache variables.
+
+To make LLVM behave like "the ideal project" as much as possible, this tool expects the source
+to still be specified as the root llvm-project repository. By default, the tool will detect
+that LLVM is being compiled and update the true source directory accordingly, as well as adjust
+many default options. There are also flags for LLVM-specific concepts like TARGETS_TO_BUILD and
+EXPENSIVE_CHECKS to simplify common configuration tweaks and provide concise autocompletion.
+
+Another subcommand "lit" provides a nicer interface to llvm-lit (and cmake --build, to
+implement the -g/--group flag). The "lit" subcommand optionally ensures that a ResultDB file
+called "lit.json" is written to the binary path when tests are run, allowing subsequent runs to
+recall which tests failed. With no arguments or flags specifying which tests to run, the
+subcommand will run all tests marked as failed in the ResultDB. Repeatedly invoking the
+subcommand can thus incrementally "resolve" tests as the ResultDB is updated, removing them
+from the list of failing tests until it is empty. This behavior is controlled by the
+-u/--update-resulbdb[=<BOOL>] flag which is enabled by default unless a particular subset of
+tests is specified (via the -1/--first flag or TESTS arguments). The developer can then focus
+on specific failing tests without losing track of the remaining failing tests, and can record
+newly passing tests by running the subcommand without specifying a subset.
+
+The "lit" subcommand will also manage the FILECHECK_OPTS environment variable to make truely
+"verbose" lit output easier to achieve.
+
+Finally, the subcommands "activate" and "deactivate" print shell commands to modify the shell
+environment to "enter" and "exit" a set of global "cm" options. The "activate" command sets
+variables for the source directory ("CM_SRC"), binary directory ("CM_BIN"), configuration
+("CM_CFG"), and quirks mode ("CM_QUIRKS") as well as an alias for "cm" which uses them. To
+simplify executing binaries in the binary directory it also prepends the "bin" subdirectory in
+the binary path to the "PATH" environment variable. The "deactivate" command attempts to undo
+all of the effects of "activate". The output of each subcommand is intended to be passed as
+arguments to "eval". Neither subcommand handles all edge cases, nor do they support a wide
+gamut of shells (yet). One notable case they don't handle gracefully is an empty PATH.
+
+Typical usage of the tool involves leaving a shell parked at the top-level of the llvm-project
+and running subcommands (note that the subcommand can be abbreviated):
+
+    $ cm configure      # default values for --source, --binary, and --config are used
+    $ cm build          # ditto
+    $ cm l -g llvm      # Run a test group
+    $ cm l -v
+    $ ...               # Resolve tests failures, referencing full verbose test output
+    $ cm l
+    $ ...
+    $ cm l -1v          # Focus on only one test, implicitly not touching the ResultDB
+    $ ...               # Fix the test
+    $ cm l              # Record the fix into the ResultDB
+
+With non-default values for --source/--binary/--config you can leave these options alone across
+subcommands:
+
+    $ cm -s src -b bin -c Debug c
+    $ cm -s src -b bin -c Debug b
+    $ cm -s src -b bin -c Debug b check-llvm
+    $ cm -s src -b bin -c Debug l
+    $ cm -s src -b bin -c Debug l -v
+    $ # ...
+    $ cm -s src -b bin -c Debug l
+
+With most shells, these values can be factored out with aliases:
+
+    $ alias cm='cm -s src -b bin -c Debug'
+    $ cm configure
+    $ cm build
+    $ cm l -g llvm
+    $ cm l
+    $ cm l -v
+    $ # ...
+    $ cm l
+
+For the bash and zsh shells the "activate" subcommand automates this aliasing, updates "PATH"
+to search the bin subdirectory in the binary path, and also defines the environment variables
+"CM_SRC", "CM_BIN", and "CM_CFG" for use in scripts and prompts:
+
+    $ type cm
+    cm is /usr/bin/cm
+    $ eval $(cm -s src -b bin -d activate)
+    $ echo "$CM_SRC"
+    src
+    $ echo "$CM_BIN"
+    bin
+    $ echo "$CM_CFG"
+    Debug
+    $ echo "$PATH"
+    bin/bin:$ORIG_PATH
+    $ type cm
+    cm is aliased to `cm -s "$CM_SRC" -b "$CM_BIN" -c "$CM_CFG"'
+
+And the "deactivate" subcommand automates reversing an "activate":
+
+    $ # beginning with the environment from above...
+    $ eval $(cm deactivate)
+    $ echo "$CM_SRC"
+    $ echo "$CM_BIN"
+    $ echo "$CM_CFG"
+    $ echo "$PATH"
+    $ORIG_PATH
+    $ type cm
+    cm is /usr/bin/cm
+
+Usage: cm [OPTIONS] <COMMAND>
+
+Commands:
+  configure   CMake Configure [aliases: c]
+  build       CMake Build [aliases: b]
+  lit         llvm-lit [aliases: l]
+  activate    Print shell commands to activate a set of global options [aliases: a]
+  deactivate  Print shell commands to deactivate global options set via activate [aliases: d]
+  help        Print this message or the help of the given subcommand(s)
+
+Options:
+  -c, --config <CONFIG>
+          CMake Build Config
+          
+          [default: Release]
+
+  -d, --debug
+          Shorthand for `--config Debug`
+
+  -#, --dry-run
+          Perform a dry run, only printing the generated command line
+
+  -q, --quirks <QUIRKS>
+          Disable quirk mode detection and specify one explicitly
+          
+          [possible values: none, llvm]
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
+
+CMAKE DIRECTORY OPTIONS:
+  -s, --source <SOURCE>
+          CMake Source Directory
+
+  -b, --binary <BINARY>
+          CMake Binary Directory
+```

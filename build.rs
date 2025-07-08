@@ -1,4 +1,6 @@
 use clap::{CommandFactory, ValueEnum};
+use std::fs::File;
+use std::io::Write;
 
 include!("src/cli.rs");
 
@@ -26,6 +28,10 @@ fn main() -> std::io::Result<()> {
         let subcmd_name = subcmd.get_name();
         std::fs::write(outdir.join(format!("{cmd_name}-{subcmd_name}.1")), &buffer)?;
     }
+
+    let usage = cmd.render_long_help();
+    let mut readme = File::create("README.md")?;
+    write!(readme, "# cm\n```text\n{usage}```")?;
 
     Ok(())
 }
