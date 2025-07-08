@@ -26,7 +26,7 @@ impl error::Error for CommandFailedError {}
 impl fmt::Display for CommandFailedError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.0 {
-            Some(i) => write!(f, "command failed with code {}", i),
+            Some(i) => write!(f, "command failed with code {i}"),
             None => write!(f, "command failed with unknown code"),
         }
     }
@@ -186,7 +186,7 @@ fn plan_configure(
     } else {
         "all".into()
     };
-    cmd.arg(format!("-DLLVM_TARGETS_TO_BUILD={}", targets));
+    cmd.arg(format!("-DLLVM_TARGETS_TO_BUILD={targets}"));
     let flags = flags
         .iter()
         .chain(configure.flag.iter())
@@ -205,8 +205,8 @@ fn plan_configure(
     let env_cxxflags = env::var("CXXFLAGS")
         .map(maybe_prepend_space)
         .unwrap_or_default();
-    cmd.arg(format!("-DCMAKE_C_FLAGS={}{}", flags, env_cflags));
-    cmd.arg(format!("-DCMAKE_CXX_FLAGS={}{}", flags, env_cxxflags));
+    cmd.arg(format!("-DCMAKE_C_FLAGS={flags}{env_cflags}"));
+    cmd.arg(format!("-DCMAKE_CXX_FLAGS={flags}{env_cxxflags}"));
     cmd.args(configure.args.as_slice());
     let mut rm_cmd = process::Command::new("rm");
     rm_cmd.arg("-rf");
@@ -274,7 +274,7 @@ fn plan_lit(lit: &Lit, cli: &Cli, _quirks: Quirks, paths: Paths) -> Result<Vec<p
                 .map(|t| t.test_path(paths))
                 .collect(),
             Err(e) => {
-                eprintln!("warning: ignoring lit.json: {}", e);
+                eprintln!("warning: ignoring lit.json: {e}");
                 vec![]
             }
         }
