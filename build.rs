@@ -15,7 +15,7 @@ fn main() -> std::io::Result<()> {
         clap_complete::generate_to(shell, &mut cmd, "cm", &outdir)?;
     }
 
-    let mut buffer: Vec<u8> = Default::default();
+    let mut buffer: Vec<u8> = Vec::default();
     let man = clap_mangen::Man::new(cmd.clone());
     man.render(&mut buffer)?;
     let cmd_name = cmd.get_name();
