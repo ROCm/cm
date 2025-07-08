@@ -381,7 +381,7 @@ impl FuzzyParser {
         // this in the possible_values proper as we it would confuse the autocomplete generation.
         let mut valid_values = Vec::new();
         if let Some(prefix) = self.inferrable_prefix {
-            valid_values.push(format!("{}*", prefix));
+            valid_values.push(format!("{prefix}*"));
         }
         valid_values.extend(self.known_values.iter().copied().map(String::from));
         err.insert(ContextKind::ValidValue, ContextValue::Strings(valid_values));
@@ -413,7 +413,7 @@ impl FuzzyParser {
             .filter(|s| s.starts_with(value))
             .collect::<Vec<_>>();
         match matching_groups[..] {
-            [unique_group] => Ok(format!("{}{}", inferrable_prefix, unique_group)),
+            [unique_group] => Ok(format!("{inferrable_prefix}{unique_group}")),
             _ => Err(self.error(cmd, arg, value)),
         }
     }

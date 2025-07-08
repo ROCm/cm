@@ -14,7 +14,7 @@ fn main() {
         if let Some(e) = e.downcast_ref::<cm::CommandFailedError>() {
             exit(e.0.unwrap_or(-1));
         } else {
-            eprintln!("{}", e);
+            eprintln!("{e}");
             exit(-1);
         }
     }
