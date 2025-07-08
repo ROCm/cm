@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 use crate::cli::{Activate, Build, Cli, Command, Configure, Deactivate, Lit, Quirks};
-use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Deserialize;
 use shell_quote::{Bash, Quotable, QuoteInto};
@@ -15,6 +14,7 @@ use std::io::BufReader;
 use std::io::ErrorKind::NotFound;
 use std::path::{Path, PathBuf};
 use std::process::{self, Stdio};
+use std::sync::LazyLock;
 
 type Result<T> = ::std::result::Result<T, Box<dyn error::Error>>;
 
@@ -55,11 +55,11 @@ struct ResultDBTest {
 impl ResultDBTest {
     fn test_path(&self, paths: Paths) -> PathBuf {
         fn case(find: &'static str, replace: &'static str) -> (Regex, &'static str) {
-            // We unwrap because an error compiling the regex is a dev-time failure
-            (Regex::new(find).unwrap(), replace)
+            // An error compiling the regex is a dev-time failure
+            (Regex::new(find).expect("invalid resultdb regex"), replace)
         }
-        lazy_static! {
-            static ref REGEXES: Vec<(Regex, &'static str)> = vec![
+        static REGEXES: LazyLock<Vec<(Regex, &'static str)>> = LazyLock::new(|| {
+            vec![
                 case(r"LLVM :: ", "test/"),
                 case(r"LLVM-Unit :: .*", "test/Unit"),
                 case(r"LLVM :: ", "test/"),
@@ -84,8 +84,8 @@ impl ResultDBTest {
                 case(r"Polly :: ", "../polly/test/"),
                 case(r"Polly-Unit :: .*", "../polly/test/Unit"),
                 case(r"Polly - isl unit tests :: .*", "../polly/test/UnitIsl"),
-            ];
-        }
+            ]
+        });
         for (find, replace) in REGEXES.iter() {
             if find.is_match(&self.test_id) {
                 let mut path = paths.source.to_owned();
@@ -195,7 +195,7 @@ fn plan_configure(
         .join(" ");
     let maybe_prepend_space = |mut s: String| {
         if !flags.is_empty() {
-            s.insert(0, ' ')
+            s.insert(0, ' ');
         }
         s
     };
@@ -279,9 +279,9 @@ fn plan_lit(lit: &Lit, cli: &Cli, _quirks: Quirks, paths: Paths) -> Result<Vec<p
             }
         }
     } else {
-        lit.tests.iter().map(|a| a.into()).collect()
+        lit.tests.iter().map(Into::into).collect()
     };
-    args.extend(lit.args.iter().map(|a| a.into()));
+    args.extend(lit.args.iter().map(Into::into));
     if args.is_empty() {
         Ok(vec![])
     } else if lit.print_only {
@@ -413,15 +413,15 @@ fn detect_quirks(cli: &Cli) -> Quirks {
     }
 }
 
-/// Helper to quote any Quotable into OsString, which process::Command works in terms of.
+/// Helper to quote any Quotable into `OsString`, which `process::Command` works in terms of.
 fn quote<'a, S: Into<Quotable<'a>>>(s: S) -> OsString {
     let mut out = OsString::new();
     Bash::quote_into(s.into(), &mut out);
     out
 }
 
-pub fn cm(cli: Cli) -> Result<()> {
-    let quirks = cli.quirks.unwrap_or(detect_quirks(&cli));
+pub fn cm(cli: &Cli) -> Result<()> {
+    let quirks = cli.quirks.unwrap_or(detect_quirks(cli));
     let source = cli.source.clone().unwrap_or(match quirks {
         Quirks::None => ".".into(),
         Quirks::Llvm => "llvm".into(),
@@ -431,7 +431,7 @@ pub fn cm(cli: Cli) -> Result<()> {
         source: &source,
         binary: &binary,
     };
-    let cmds = plan(&cli.command, &cli, quirks, paths)?;
+    let cmds = plan(&cli.command, cli, quirks, paths)?;
     for ref mut cmd in cmds {
         if cli.dry_run {
             let mut quoted = Vec::new();
@@ -452,7 +452,7 @@ pub fn cm(cli: Cli) -> Result<()> {
             let status = cmd.status()?;
             if !status.success() {
                 return Err(Box::new(CommandFailedError(status.code())));
-            };
+            }
         }
     }
     Ok(())

@@ -181,6 +181,7 @@ pub struct Cli {
 }
 
 impl Cli {
+    #[must_use]
     pub fn final_config(&self) -> String {
         if self.debug {
             "Debug".into()
