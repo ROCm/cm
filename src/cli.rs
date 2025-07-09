@@ -237,13 +237,17 @@ pub struct Configure {
     /// Enable expensive checks
     #[arg(long, help_heading = LLVM_HEADING)]
     pub expensive_checks: bool,
-    /// Append to LLVM_ENABLE_PROJECTS [default: llvm;clang;lld]
+    /// Append to LLVM_ENABLE_PROJECTS [default: llvm,clang,lld]
+    ///
+    /// Repeatable and accepts comma-separated arguments (e.g. -e foo -e bar,baz).
     ///
     /// When no project is specified, the default set is used. If any project is specified the
     /// default set is ignored and all specified projects are enabled.
-    #[arg(short, long, help_heading = LLVM_HEADING, value_parser = FuzzyParser::new(include!("../values/llvm_all_projects.in"), None))]
+    #[arg(short, long, help_heading = LLVM_HEADING, value_delimiter = ',', value_parser = FuzzyParser::new(include!("../values/llvm_all_projects.in"), None))]
     pub enable_projects: Option<Vec<String>>,
     /// Append to LLVM_TARGETS_TO_BUILD [default: all]
+    ///
+    /// Repeatable and accepts comma-separated arguments (e.g. -t foo -t bar,baz).
     ///
     /// When no target is specified, the default set is used. If any target is specified, the
     /// default set is ignored and all specified targets _as well as the "Native" target_ are
@@ -256,12 +260,12 @@ pub struct Configure {
     ///
     /// To disable the implicit inclusion of the "Native" target, use the
     /// -T/--targets-to-build-alt flag instead.
-    #[arg(short, long, group = "targets", help_heading = LLVM_HEADING, value_parser = FuzzyParser::new(include!("../values/llvm_all_targets.in"), None))]
+    #[arg(short, long, group = "targets", help_heading = LLVM_HEADING, value_delimiter = ',', value_parser = FuzzyParser::new(include!("../values/llvm_all_targets.in"), None))]
     pub targets_to_build: Option<Vec<String>>,
     /// Append to LLVM_TARGETS_TO_BUILD wihout implicit "Native" target [default: all]
     ///
     /// See -t/--targets-to-build help for more details
-    #[arg(short = 'T', long, group = "targets", help_heading = LLVM_HEADING, value_parser = FuzzyParser::new(include!("../values/llvm_all_targets_alt.in"), None))]
+    #[arg(short = 'T', long, group = "targets", help_heading = LLVM_HEADING, value_delimiter = ',', value_parser = FuzzyParser::new(include!("../values/llvm_all_targets_alt.in"), None))]
     pub targets_to_build_alt: Option<Vec<String>>,
     /// Trailing arguments to forward to cmake
     pub args: Vec<OsString>,

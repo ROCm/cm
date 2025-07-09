@@ -1,0 +1,2 @@
+bin.name = "cm"
+args = "-# configure -e llvm -e lld -e clang,lldb"

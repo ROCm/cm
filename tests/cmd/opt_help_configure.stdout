@@ -48,7 +48,9 @@ LLVM-SPECIFIC OPTIONS:
           Enable expensive checks
 
   -e, --enable-projects <ENABLE_PROJECTS>
-          Append to LLVM_ENABLE_PROJECTS [default: llvm;clang;lld]
+          Append to LLVM_ENABLE_PROJECTS [default: llvm,clang,lld]
+          
+          Repeatable and accepts comma-separated arguments (e.g. -e foo -e bar,baz).
           
           When no project is specified, the default set is used. If any project is specified the
           default set is ignored and all specified projects are enabled.
@@ -58,6 +60,8 @@ LLVM-SPECIFIC OPTIONS:
 
   -t, --targets-to-build <TARGETS_TO_BUILD>
           Append to LLVM_TARGETS_TO_BUILD [default: all]
+          
+          Repeatable and accepts comma-separated arguments (e.g. -t foo -t bar,baz).
           
           When no target is specified, the default set is used. If any target is specified, the
           default set is ignored and all specified targets _as well as the "Native" target_ are

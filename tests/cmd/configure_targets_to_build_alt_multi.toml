@@ -1,2 +1,2 @@
 bin.name = "cm"
-args = "-# configure -T AMDGPU -T RISCV"
+args = "-# configure -T AMDGPU -T RISCV -T X86,ARM"
