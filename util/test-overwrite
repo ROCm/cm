@@ -1,0 +1,2 @@
+#!/bin/bash
+TRYCMD=overwrite cargo test
