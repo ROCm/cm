@@ -177,6 +177,13 @@ fn plan_configure(
             .as_ref()
             .map_or("llvm;clang;lld".into(), |v| v.join(";"))
     ));
+    cmd.arg(format!(
+        "-DLLVM_ENABLE_RUNTIMES={}",
+        configure
+            .enable_runtimes
+            .as_ref()
+            .map_or("".into(), |v| v.join(";"))
+    ));
     let targets = if let Some(targets) = &configure.targets_to_build {
         let mut t = vec!["Native".into()];
         t.extend(targets.iter().cloned());
