@@ -1,0 +1,2 @@
+bin.name = "cm"
+args = "-# configure -r foo -r offload -r compiler-rt,foobar"

@@ -245,6 +245,11 @@ pub struct Configure {
     /// default set is ignored and all specified projects are enabled.
     #[arg(short, long, help_heading = LLVM_HEADING, value_delimiter = ',', value_parser = FuzzyParser::new(include!("../values/llvm_all_projects.in"), None))]
     pub enable_projects: Option<Vec<String>>,
+    /// Append to LLVM_ENABLE_RUNTIMES [default: ""]
+    ///
+    /// Repeatable and accepts comma-separated arguments (e.g. -r foo -r bar,baz).
+    #[arg(short = 'r', long, help_heading = LLVM_HEADING, value_delimiter = ',', value_parser = FuzzyParser::new(include!("../values/llvm_all_runtimes.in"), None))]
+    pub enable_runtimes: Option<Vec<String>>,
     /// Append to LLVM_TARGETS_TO_BUILD [default: all]
     ///
     /// Repeatable and accepts comma-separated arguments (e.g. -t foo -t bar,baz).
