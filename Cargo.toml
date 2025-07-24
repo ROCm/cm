@@ -30,4 +30,4 @@ serde_json = "1.0.87"
 shell-quote = "0.7.1"
 
 [dev-dependencies]
-trycmd = "0.15.8"
+trycmd = "0.15.10"
