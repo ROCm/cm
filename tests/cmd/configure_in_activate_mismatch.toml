@@ -1,0 +1,6 @@
+bin.name = "cm"
+args = "-# configure"
+
+[env.add]
+PATH = "foo/bin:bar/bin:baz/bin"
+CM_BIN = "other"

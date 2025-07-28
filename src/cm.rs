@@ -111,7 +111,7 @@ fn plan_configure(
     quirks: Quirks,
     paths: Paths,
 ) -> Result<Vec<process::Command>> {
-    let mut cmd = process::Command::new("cmake");
+    let mut cmd = adjust_path(process::Command::new("cmake"));
     let mut flags = Vec::new();
     cmd.arg("-S");
     cmd.arg(paths.source.as_os_str());
@@ -379,7 +379,7 @@ fn has_command(name: &str) -> Result<bool> {
     if env::var("CM_TESTING").is_ok() {
         return Ok(true);
     }
-    let status = process::Command::new(name)
+    let status = adjust_path(process::Command::new(name))
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -393,7 +393,7 @@ fn has_command(name: &str) -> Result<bool> {
 
 fn has_cc_flag(name: &str) -> Result<bool> {
     let cc = env::var("CC").unwrap_or("cc".into());
-    let status = process::Command::new(cc)
+    let status = adjust_path(process::Command::new(cc))
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -418,6 +418,27 @@ fn detect_quirks(cli: &Cli) -> Quirks {
     } else {
         Quirks::None
     }
+}
+
+fn get_adjusted_path() -> Option<&'static str> {
+    static ADJUSTED_PATH: LazyLock<Option<String>> = LazyLock::new(|| {
+        if let (Ok(path), Ok(cm_bin)) = (env::var("PATH"), env::var("CM_BIN")) {
+            if let Some((first_dir, rest)) = path.split_once(':') {
+                if format!("{cm_bin}/bin") == first_dir {
+                    return Some(rest.to_string());
+                }
+            }
+        }
+        None
+    });
+    ADJUSTED_PATH.as_deref()
+}
+
+fn adjust_path(mut cmd: process::Command) -> process::Command {
+    if let Some(adjusted_path) = get_adjusted_path() {
+        cmd.env("PATH", adjusted_path);
+    }
+    cmd
 }
 
 /// Helper to quote any Quotable into `OsString`, which `process::Command` works in terms of.
