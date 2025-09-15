@@ -26,7 +26,7 @@ clap_mangen = "0.2.28"
 clap = { version = "4.5.41", features = ["env", "derive", "wrap_help", "color"] }
 regex = "1.6.0"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0.141"
+serde_json = "1.0.145"
 shell-quote = "0.7.1"
 
 [dev-dependencies]
