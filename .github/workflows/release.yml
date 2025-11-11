@@ -1,21 +1,81 @@
-name: release
+name: Create Release
 
 on:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
-
-permissions:
-  # read for actions/checkout
-  # write for softprops/action-gh-release
-  contents: write
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - major  # Bump major version and reset minor/patch (e.g., 0.6.0 -> 1.0.0)
+          - minor  # Bump minor version and reset patch (e.g., 0.6.0 -> 0.7.0)
+          - patch  # Bump patch version only (e.g., 0.6.0 -> 0.6.1)
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Get current version
+        id: get_version
+        run: |
+          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+      
+      - name: Calculate new version
+        id: calc_version
+        run: |
+          CURRENT_VERSION="${{ steps.get_version.outputs.current_version }}"
+          IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+          
+          if [ "${{ inputs.version_bump }}" == "major" ]; then
+            # Bump major, reset minor and patch
+            NEW_VERSION="$((major + 1)).0.0"
+          elif [ "${{ inputs.version_bump }}" == "minor" ]; then
+            # Bump minor, reset patch
+            NEW_VERSION="${major}.$((minor + 1)).0"
+          else
+            # Bump patch
+            NEW_VERSION="${major}.${minor}.$((patch + 1))"
+          fi
+          
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+      
+      - name: Update Cargo.toml
+        run: |
+          NEW_VERSION="${{ steps.calc_version.outputs.new_version }}"
+          sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
+          
+          echo "Updated Cargo.toml:"
+          grep '^version = ' Cargo.toml | head -1
+      
+      - name: Commit version bump
+        run: |
+          NEW_VERSION="${{ steps.calc_version.outputs.new_version }}"
+          git add Cargo.toml
+          git commit -m "Bump version to $NEW_VERSION"
+          git tag "v$NEW_VERSION"
+      
+      - name: Push changes and tag
+        run: |
+          git push origin main
+          git push origin "v${{ steps.calc_version.outputs.new_version }}"
+      
       - name: Build DEB
         run: |
           docker run --rm -t \
@@ -23,11 +83,13 @@ jobs:
             -v "$(pwd)":/volume \
             clux/muslrust:stable \
             /bin/sh -c 'cargo install cargo-deb && cargo deb --target x86_64-unknown-linux-musl --output cm-amd64-musl.deb'
+      
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: v${{ steps.calc_version.outputs.new_version }}
           generate_release_notes: true
-          draft: true
+          draft: false
           fail_on_unmatched_files: true
           files: |
             cm-amd64-musl.deb
