@@ -135,10 +135,20 @@ fn plan_configure(
         if has_command("sphinx-build")? {
             cmd.arg("-DLLVM_ENABLE_SPHINX=On");
         }
-        if has_command("lld")? && has_cc_flag("-fuse-ld=lld")? {
-            cmd.arg("-DLLVM_USE_LINKER=lld");
-        } else if has_command("gold")? && has_cc_flag("-fuse-ld=gold")? {
-            cmd.arg("-DLLVM_USE_LINKER=gold");
+        match configure.linker.as_deref() {
+            Some("default") => {
+                // User explicitly wants to skip linker selection
+            }
+            Some(linker) => {
+                cmd.arg(format!("-DLLVM_USE_LINKER={linker}"));
+            }
+            None => {
+                if has_command("lld")? && has_cc_flag("-fuse-ld=lld")? {
+                    cmd.arg("-DLLVM_USE_LINKER=lld");
+                } else if has_command("gold")? && has_cc_flag("-fuse-ld=gold")? {
+                    cmd.arg("-DLLVM_USE_LINKER=gold");
+                }
+            }
         }
     }
     if has_command("ccache")? {
