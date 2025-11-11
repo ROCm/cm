@@ -234,6 +234,16 @@ pub struct Configure {
     /// Enable ASan and UBSan
     #[arg(long)]
     pub san: bool,
+    /// Set the preferred linker.
+    ///
+    /// This is honored on a best-effort basis, and is only currently implemented for
+    /// LLVM quirks mode, where the default is to try to use lld or gold if they are available.
+    /// This default is intended to work around exteremely slow or impossible link steps
+    /// for debug builds of LLVM when using the system linker in many environments.
+    ///
+    /// Specify "default" to explicitly disable automatic linker selection and use the system default.
+    #[arg(long, value_parser = FuzzyParser::new(["lld", "gold", "mold", "bfd", "default"], None))]
+    pub linker: Option<String>,
     /// Enable expensive checks
     #[arg(long, help_heading = LLVM_HEADING)]
     pub expensive_checks: bool,

@@ -1,0 +1,2 @@
+bin.name = "cm"
+args = "-# -q llvm configure --linker=mold"

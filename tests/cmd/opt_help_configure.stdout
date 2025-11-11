@@ -35,6 +35,19 @@ Options:
       --san
           Enable ASan and UBSan
 
+      --linker <LINKER>
+          Set the preferred linker.
+          
+          This is honored on a best-effort basis, and is only currently implemented for LLVM quirks
+          mode, where the default is to try to use lld or gold if they are available. This default
+          is intended to work around exteremely slow or impossible link steps for debug builds of
+          LLVM when using the system linker in many environments.
+          
+          Specify "default" to explicitly disable automatic linker selection and use the system
+          default.
+          
+          [possible values: lld, gold, mold, bfd, default]
+
   -q, --quirks <QUIRKS>
           Disable quirk mode detection and specify one explicitly
           
