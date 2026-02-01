@@ -3,14 +3,14 @@
 
 #![doc = include_str!("../README.md")]
 
+mod args;
 mod cli;
 mod cm;
 
-use clap::Parser;
 use std::process::exit;
 
 fn main() {
-    if let Err(e) = cm::cm(&cli::Cli::parse()) {
+    if let Err(e) = cm::cm() {
         if let Some(e) = e.downcast_ref::<cm::CommandFailedError>() {
             exit(e.0.unwrap_or(-1));
         } else {

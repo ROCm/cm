@@ -49,6 +49,12 @@ print the commands rather than execute them.
 The command-line interface is declared separately in `src/cli.rs` to make it
 easier for `build.rs` to generate `man` pages, autocompletion scripts, etc.
 
+A bit of a hack on top of Clap to integrate a ripgrep-like config file is
+implemented in `src/args.rs`, and works by abusing `external_subcommand` in a
+private `clap::Parser` to identify the subcommand and its arguments, and then
+stitching it together with the global and config arguments before calling the
+actual `clap::Parser` in `src/cli.rs`.
+
 # Tools
 
 The choice of Rust was largely due to the package ecosystem which does most of

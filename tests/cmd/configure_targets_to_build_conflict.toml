@@ -1,3 +1,0 @@
-bin.name = "cm"
-args = "-# configure -t AMDGPU -T RISCV"
-status.code = 2

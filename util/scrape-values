@@ -42,5 +42,3 @@ cmake -S "$PATH_TO_LLVM_PROJECT/llvm" -B "$VALUES"/scrape_bin -DLLVM_ENABLE_PROJ
     | cmake_array_to_rust_array \
     > "$VALUES/llvm_all_runtimes.in"
 rm -rf "$VALUES"/scrape_bin
-
-sed 's/^\[/["Native", /' <"$VALUES/llvm_all_targets.in" >"$VALUES/llvm_all_targets_alt.in"

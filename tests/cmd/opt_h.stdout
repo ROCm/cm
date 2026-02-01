@@ -11,14 +11,14 @@ Commands:
   help        Print this message or the help of the given subcommand(s)
 
 Options:
-  -c, --config <CONFIG>  CMake Build Config [default: Release]
-  -d, --debug            Shorthand for `--config Debug`
-  -#, --dry-run          Perform a dry run, only printing the generated command line
-  -q, --quirks <QUIRKS>  Disable quirk mode detection and specify one explicitly [possible values:
-                         none, llvm]
-  -h, --help             Print help (see more with '--help')
-  -V, --version          Print version
+  -h, --help     Print help (see more with '--help')
+  -V, --version  Print version
 
-CMAKE DIRECTORY OPTIONS:
-  -s, --source <SOURCE>  CMake Source Directory
-  -b, --binary <BINARY>  CMake Binary Directory
+Global Options:
+  -s, --source <SOURCE>   CMake Source Directory [env: CM_SRC=]
+  -b, --binary <BINARY>   CMake Binary Directory [env: CM_BIN=]
+  -c, --config <CONFIG>   CMake Build Config [env: CM_CFG=] [possible values: Release, Debug,
+                          RelWithDebInfo, MinSizeRel]
+  -q, --quirks <QUIRKS>   Disable quirk mode detection and specify one explicitly [env: CM_QUIRKS=]
+                          [possible values: none, llvm]
+  -#, --dry-run[=<BOOL>]  Perform a dry run, only printing the generated command line

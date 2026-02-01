@@ -1,0 +1,22 @@
+#!/bin/bash
+
+set -u
+
+-() { exit 1; }
+
+readonly NAME="$0"
+readonly ROOT="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+readonly TESTS="$ROOT/../tests"
+
+usage() {
+    printf 'usage: %s test_case_name\n' "$NAME" >&2
+    exit 1
+}
+
+(($#==1)) || usage
+readonly TEST_CASE_NAME="$1"
+
+for f in "$TESTS"/skel/*; do
+    base="$(basename "$f")"
+    cp -r "$f" "$TESTS"/cmd/"${base/skel/"$TEST_CASE_NAME"}" ||-
+done

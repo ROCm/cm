@@ -1,33 +1,46 @@
 Print shell commands to activate a set of global options
 
-Prepends the PATH environment variable with the bin subdirectory of the binary path, sets
-CM_SRC/CM_BIN/CM_CFG/CM_QUIRKS, and defines an alias for cm which uses them.
+The "activate" command sets variables for the source directory ("CM_SRC"), binary directory
+("CM_BIN"), configuration ("CM_CFG"), and quirks mode ("CM_QUIRKS"), which are interpreted as-if
+they were provided on the command-line. To simplify executing binaries in the binary directory it
+also prepends the "bin" subdirectory in the binary path to the "PATH" environment variable.
 
 Usage: cm activate [OPTIONS]
 
 Options:
+  -h, --help
+          Print help (see a summary with '-h')
+
+Global Options:
+  -s, --source <SOURCE>
+          CMake Source Directory
+          
+          [default: .]
+          
+          [env: CM_SRC=]
+
+  -b, --binary <BINARY>
+          CMake Binary Directory
+          
+          [default: ./build]
+          
+          [env: CM_BIN=]
+
   -c, --config <CONFIG>
           CMake Build Config
           
           [default: Release]
-
-  -d, --debug
-          Shorthand for `--config Debug`
-
-  -#, --dry-run
-          Perform a dry run, only printing the generated command line
+          
+          [env: CM_CFG=]
+          [possible values: Release, Debug, RelWithDebInfo, MinSizeRel]
 
   -q, --quirks <QUIRKS>
           Disable quirk mode detection and specify one explicitly
           
+          [default: none]
+          
+          [env: CM_QUIRKS=]
           [possible values: none, llvm]
 
-  -h, --help
-          Print help (see a summary with '-h')
-
-CMAKE DIRECTORY OPTIONS:
-  -s, --source <SOURCE>
-          CMake Source Directory
-
-  -b, --binary <BINARY>
-          CMake Binary Directory
+  -#, --dry-run[=<BOOL>]
+          Perform a dry run, only printing the generated command line

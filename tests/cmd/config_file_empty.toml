@@ -1,0 +1,4 @@
+bin.name = "cm"
+args = "-# b"
+[env.add]
+CM_CONFIG_PATH = "cm.rc"

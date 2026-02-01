@@ -1,2 +1,2 @@
 bin.name = "cm"
-args = "-# configure -t AMDGPU"
+args = "-# -q llvm configure -t AMDGPU"

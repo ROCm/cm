@@ -1,1 +1,1 @@
-build/bin/llvm-lit ./test/bar
+[CWD]/build/bin/llvm-lit [CWD]/test/bar

@@ -3,16 +3,43 @@ CMake Build
 Usage: cm build [OPTIONS] [ARGS]...
 
 Arguments:
-  [ARGS]...  Trailing arguments to forward to build tool
+  [ARGS]...
+          Trailing arguments to forward to build tool
 
 Options:
-  -c, --config <CONFIG>  CMake Build Config [default: Release]
-  -d, --debug            Shorthand for `--config Debug`
-  -#, --dry-run          Perform a dry run, only printing the generated command line
-  -q, --quirks <QUIRKS>  Disable quirk mode detection and specify one explicitly [possible values:
-                         none, llvm]
-  -h, --help             Print help
+  -h, --help
+          Print help (see a summary with '-h')
 
-CMAKE DIRECTORY OPTIONS:
-  -s, --source <SOURCE>  CMake Source Directory
-  -b, --binary <BINARY>  CMake Binary Directory
+Global Options:
+  -s, --source <SOURCE>
+          CMake Source Directory
+          
+          [default: .]
+          
+          [env: CM_SRC=]
+
+  -b, --binary <BINARY>
+          CMake Binary Directory
+          
+          [default: ./build]
+          
+          [env: CM_BIN=]
+
+  -c, --config <CONFIG>
+          CMake Build Config
+          
+          [default: Release]
+          
+          [env: CM_CFG=]
+          [possible values: Release, Debug, RelWithDebInfo, MinSizeRel]
+
+  -q, --quirks <QUIRKS>
+          Disable quirk mode detection and specify one explicitly
+          
+          [default: none]
+          
+          [env: CM_QUIRKS=]
+          [possible values: none, llvm]
+
+  -#, --dry-run[=<BOOL>]
+          Perform a dry run, only printing the generated command line
