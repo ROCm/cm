@@ -64,24 +64,60 @@ jobs:
           echo "Updated Cargo.toml:"
           grep '^version = ' Cargo.toml | head -1
       
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+      
+      - name: Build with cargo to update Cargo.lock
+        run: cargo build
+      
       - name: Create signed commit via GitHub API
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           NEW_VERSION="${{ steps.calc_version.outputs.new_version }}"
           MESSAGE="Bump version to $NEW_VERSION"
-          FILE_TO_COMMIT="Cargo.toml"
           BRANCH="main"
           
-          # Get the current file SHA
-          SHA=$(git rev-parse HEAD:$FILE_TO_COMMIT)
+          # Get the current commit SHA
+          PARENT_SHA=$(git rev-parse HEAD)
           
-          # Commit the updated file using GitHub API (automatically signed)
-          gh api --method PUT /repos/:owner/:repo/contents/$FILE_TO_COMMIT \
+          # Get the current tree
+          PARENT_TREE=$(gh api /repos/:owner/:repo/git/commits/$PARENT_SHA --jq '.tree.sha')
+          
+          # Create blobs for both files
+          CARGO_TOML_BLOB=$(gh api --method POST /repos/:owner/:repo/git/blobs \
+            --field content=@<( base64 -w 0 Cargo.toml ) \
+            --field encoding="base64" \
+            --jq '.sha')
+          
+          CARGO_LOCK_BLOB=$(gh api --method POST /repos/:owner/:repo/git/blobs \
+            --field content=@<( base64 -w 0 Cargo.lock ) \
+            --field encoding="base64" \
+            --jq '.sha')
+          
+          # Create a new tree with both files
+          NEW_TREE=$(gh api --method POST /repos/:owner/:repo/git/trees \
+            --field base_tree="$PARENT_TREE" \
+            --field "tree[][path]=Cargo.toml" \
+            --field "tree[][mode]=100644" \
+            --field "tree[][type]=blob" \
+            --field "tree[][sha]=$CARGO_TOML_BLOB" \
+            --field "tree[][path]=Cargo.lock" \
+            --field "tree[][mode]=100644" \
+            --field "tree[][type]=blob" \
+            --field "tree[][sha]=$CARGO_LOCK_BLOB" \
+            --jq '.sha')
+          
+          # Create a new commit
+          NEW_COMMIT=$(gh api --method POST /repos/:owner/:repo/git/commits \
             --field message="$MESSAGE" \
-            --field content=@<( base64 -w 0 $FILE_TO_COMMIT ) \
-            --field branch="$BRANCH" \
-            --field sha="$SHA"
+            --field tree="$NEW_TREE" \
+            --field "parents[]=$PARENT_SHA" \
+            --jq '.sha')
+          
+          # Update the branch reference
+          gh api --method PATCH /repos/:owner/:repo/git/refs/heads/$BRANCH \
+            --field sha="$NEW_COMMIT"
           
           # Create tag
           git fetch origin
