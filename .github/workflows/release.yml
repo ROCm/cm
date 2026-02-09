@@ -98,19 +98,19 @@ jobs:
           # Create a new tree with both files
           NEW_TREE=$(gh api --method POST /repos/:owner/:repo/git/trees \
             --input - <<< '{
-              "base_tree": "$PARENT_TREE",
+              "base_tree": "'"$PARENT_TREE"'",
               "tree": [
                 {
                   "path": "Cargo.toml",
                   "mode": 100644,
                   "type": "blob",
-                  "sha": "$CARGO_TOML_BLOB"
+                  "sha": "'"$CARGO_TOML_BLOB"'"
                 },
                 {
                   "path": "Cargo.lock",
                   "mode": 100644,
                   "type": "blob",
-                  "sha": "$CARGO_LOCK_BLOB"
+                  "sha": "'"$CARGO_LOCK_BLOB"'"
                 }
               ]
             }' \
