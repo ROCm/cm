@@ -1,4 +1,3 @@
-CM_SRC=src CM_BIN=bin CM_CFG=config CM_QUIRKS=none;
+CM_SRC=[CWD]/src CM_BIN=[CWD]/bin CM_CFG=config CM_QUIRKS=none;
 export CM_SRC CM_BIN CM_CFG CM_QUIRKS;
 PATH="$CM_BIN/bin:$PATH";
-alias cm='cm -s "$CM_SRC" -b "$CM_BIN" -c "$CM_CFG" -q "$CM_QUIRKS"';

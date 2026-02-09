@@ -1,96 +1,32 @@
 // Copyright © 2024 Advanced Micro Devices, Inc. All rights reserved.
 // SPDX-License-Identifier: MIT
 
+use applause::{Bool, FuzzyParser, OverridingVec, SettableBool};
+use applause_derive::ArgsToVec;
 use clap::{
-    builder::{ArgAction, ArgPredicate, PossibleValue, TypedValueParser},
-    error::{ContextKind, ContextValue},
+    builder::{ArgAction, ArgPredicate},
     ArgGroup, Args, Parser, Subcommand, ValueHint,
 };
-use std::ffi::OsString;
-use std::fmt;
+use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
 
-type ClapError = clap::Error;
-type ClapErrorKind = clap::error::ErrorKind;
-
-const DIR_HEADING: Option<&str> = Some("CMAKE DIRECTORY OPTIONS");
-const LLVM_HEADING: Option<&str> = Some("LLVM-SPECIFIC OPTIONS");
+const GLOBAL_HEADING: Option<&str> = Some("Global Options");
+const LLVM_HEADING: Option<&str> = Some("LLVM-Specific Options");
 
 /// Frontend for configuring/building/testing CMake projects (see --help for more details)
 ///
-/// Provides a common interface with saner defaults for working with CMake projects, including
-/// special support for smoothing over quirks when compiling LLVM.
+/// Provides a subcommand-based interface with saner defaults for working with CMake projects,
+/// with special support for LLVM.
 ///
-/// The default cmake command-line presents multiple inconsistent interfaces for related tasks,
-/// namely:
+/// All subcommands share a common interface for specifying the source (-s/--source) and binary
+/// (-b/--binary) paths, as well as the config (-c/--config).
 ///
-/// * The configure step generally requires -S for specifying the "source" path and -B for
-///   specifying the "build" path (also referred to as the "binary" path in some places).
-///
-/// * The build step either requires directly invoking the build tool, with its own unique syntax
-///   for specifying the build path again, or:
-///
-/// * The built-in, generic interface to the build tool in cmake requires a _different_ syntax for
-///   specifying the build path, no longer accepting -B at all.
-///
-/// Other tasks, like specifying the type of build (Release, Debug, RelWithDbgInfo, ...), are also
-/// needlessly fragmented between configuration (-DCMAKE_BUILD_TYPE=...) and build (--config ...).
-///
-/// These tasks are also not on equal footing, with configure being the "default"
-/// and build being a pseudo-subcommand "--build".
-///
-/// This tool exposes the "configuration" and "build" tasks as subcommands directly, and give them
-/// a common interface for specifying the source (-s/--source) and binary (-b/--binary) paths, as
-/// well as the config (-c/--config).
-///
-/// Beyond the tools themselves, individual projects also use cmake in quirky ways. In particular,
-/// LLVM makes some strange choices, informed by historical baggage and gaps in previous version of
-/// CMake, including:
-///
-/// * The root "CMakeLists.txt" is in the "llvm/" directory, not at the root of the project.
-///
-/// * Does not respect CMAKE_{C,CXX}_COMPILER_LAUNCHER, instead invents LLVM_CCACHE_BUILD.
-///
-/// LLVM also has many knobs whose defaults are not appropriate for development, such as disabling
-/// assertions by default in Release builds, and it has many targets and optional projects which
-/// can be enabled/disabled with particular cache variables.
-///
-/// To make LLVM behave like "the ideal project" as much as possible, this tool expects the source
-/// to still be specified as the root llvm-project repository. By default, the tool will detect
-/// that LLVM is being compiled and update the true source directory accordingly, as well as adjust
-/// many default options. There are also flags for LLVM-specific concepts like TARGETS_TO_BUILD and
-/// EXPENSIVE_CHECKS to simplify common configuration tweaks and provide concise autocompletion.
-///
-/// Another subcommand "lit" provides a nicer interface to llvm-lit (and cmake --build, to
-/// implement the -g/--group flag). The "lit" subcommand optionally ensures that a ResultDB file
-/// called "lit.json" is written to the binary path when tests are run, allowing subsequent runs to
-/// recall which tests failed. With no arguments or flags specifying which tests to run, the
-/// subcommand will run all tests marked as failed in the ResultDB. Repeatedly invoking the
-/// subcommand can thus incrementally "resolve" tests as the ResultDB is updated, removing them
-/// from the list of failing tests until it is empty. This behavior is controlled by the
-/// -u/--update-resulbdb[=<BOOL>] flag which is enabled by default unless a particular subset of
-/// tests is specified (via the -1/--first flag or TESTS arguments). The developer can then focus
-/// on specific failing tests without losing track of the remaining failing tests, and can record
-/// newly passing tests by running the subcommand without specifying a subset.
-///
-/// The "lit" subcommand will also manage the FILECHECK_OPTS environment variable to make truely
-/// "verbose" lit output easier to achieve.
-///
-/// Finally, the subcommands "activate" and "deactivate" print shell commands to modify the shell
-/// environment to "enter" and "exit" a set of global "cm" options. The "activate" command sets
-/// variables for the source directory ("CM_SRC"), binary directory ("CM_BIN"), configuration
-/// ("CM_CFG"), and quirks mode ("CM_QUIRKS") as well as an alias for "cm" which uses them. To
-/// simplify executing binaries in the binary directory it also prepends the "bin" subdirectory in
-/// the binary path to the "PATH" environment variable. The "deactivate" command attempts to undo
-/// all of the effects of "activate". The output of each subcommand is intended to be passed as
-/// arguments to "eval". Neither subcommand handles all edge cases, nor do they support a wide
-/// gamut of shells (yet). One notable case they don't handle gracefully is an empty PATH.
-///
-/// Typical usage of the tool involves leaving a shell parked at the top-level of the llvm-project
+/// Typical usage of the tool involves leaving a shell parked at the top-level of the CMake project
 /// and running subcommands (note that the subcommand can be abbreviated):
 ///
 ///     $ cm configure      # default values for --source, --binary, and --config are used
 ///     $ cm build          # ditto
+///     $ # assuming the project is LLVM...
 ///     $ cm l -g llvm      # Run a test group
 ///     $ cm l -v
 ///     $ ...               # Resolve tests failures, referencing full verbose test output
@@ -103,44 +39,35 @@ const LLVM_HEADING: Option<&str> = Some("LLVM-SPECIFIC OPTIONS");
 /// With non-default values for --source/--binary/--config you can leave these options alone across
 /// subcommands:
 ///
-///     $ cm -s src -b bin -c Debug c
-///     $ cm -s src -b bin -c Debug b
-///     $ cm -s src -b bin -c Debug b check-llvm
-///     $ cm -s src -b bin -c Debug l
-///     $ cm -s src -b bin -c Debug l -v
+///     $ cm -s src -b bin -c debug c
+///     $ cm -s src -b bin -c debug b
+///     $ cm -s src -b bin -c debug b check-llvm
+///     $ cm -s src -b bin -c debug l
+///     $ cm -s src -b bin -c debug l -v
 ///     $ # ...
-///     $ cm -s src -b bin -c Debug l
+///     $ cm -s src -b bin -c debug l
 ///
-/// With most shells, these values can be factored out with aliases:
+/// For the bash and zsh shells the "activate" subcommand automates pinning these values via
+/// environment variables and updates "PATH" to search the bin subdirectory in the binary path:
 ///
-///     $ alias cm='cm -s src -b bin -c Debug'
-///     $ cm configure
-///     $ cm build
-///     $ cm l -g llvm
-///     $ cm l
-///     $ cm l -v
-///     $ # ...
-///     $ cm l
-///
-/// For the bash and zsh shells the "activate" subcommand automates this aliasing, updates "PATH"
-/// to search the bin subdirectory in the binary path, and also defines the environment variables
-/// "CM_SRC", "CM_BIN", and "CM_CFG" for use in scripts and prompts:
-///
-///     $ type cm
-///     cm is /usr/bin/cm
-///     $ eval $(cm -s src -b bin -d activate)
+///     $ eval $(cm -s src -b bin -c debug activate)
 ///     $ echo "$CM_SRC"
-///     src
+///     $PWD/src
 ///     $ echo "$CM_BIN"
-///     bin
+///     $PWD/bin
 ///     $ echo "$CM_CFG"
 ///     Debug
 ///     $ echo "$PATH"
-///     bin/bin:$ORIG_PATH
-///     $ type cm
-///     cm is aliased to `cm -s "$CM_SRC" -b "$CM_BIN" -c "$CM_CFG"'
+///     $PWD/bin/bin:$ORIG_PATH
 ///
-/// And the "deactivate" subcommand automates reversing an "activate":
+/// Tip: Including these variable in your shell's prompt can make it easier to track when you have
+/// activated/deactivated for different projects.
+///
+/// Tip: The source and binary paths are converted to absolute paths, so once activated you can
+/// also change directories and continue to run cm commands and binaries from your build without
+/// having to locate the project root.
+///
+/// The "deactivate" subcommand automates reversing an "activate":
 ///
 ///     $ # beginning with the environment from above...
 ///     $ eval $(cm deactivate)
@@ -149,44 +76,108 @@ const LLVM_HEADING: Option<&str> = Some("LLVM-SPECIFIC OPTIONS");
 ///     $ echo "$CM_CFG"
 ///     $ echo "$PATH"
 ///     $ORIG_PATH
-///     $ type cm
-///     cm is /usr/bin/cm
+///
+/// Global configuration is read from a file named "cm.rc" in the platform-specific user config
+/// directory (e.g. on Linux this is probably $XDG_CONFIG_HOME/cm.rc or ~/.config/cm.rc). This can
+/// be controlled by setting the environment variable CM_CONFIG_PATH: if set to the empty string
+/// then no configuration file is used, and otherwise the value is interpreted as an alternative
+/// path to a config file to read.
+///
+/// The config file format is line-based, where each line is either:
+///
+/// * A comment, starting with '#'
+/// * An argument, starting with '-' and being interpreted verbatim (i.e. no quoting)
+/// * A subcommand identifier, otherwise
+///
+/// Arguments before any subcommand identifier are global, and apply to all "cm" invocations.
+/// Arguments under a specific subcommand identifier only apply for cm invocations with the
+/// appropriate subcommand specified.
+///
+/// An example config:
+///
+///     # make the default source dir path be src
+///     --source=src
+///     # disable quirks-mode detection
+///     --quirks=none
+///
+///     # switch "sections"
+///     configure
+///     # (the following args will only apply to the configure subcommand)
+///     # set a global prefix path dir
+///     --prefix-path=/some/absolute/dir
+///     # default to make rather than Ninja
+///     --generator=Unix Makefiles
+///
+///     # switch "section" again
+///     lit
+///     # do not generate a resultdb by default
+///     --update-resultdb=false
+///
+/// Overall, the order in which arguments are evaluated is (later wins):
+///
+/// * Config file (e.g. ~/.config/cm.rc)
+/// * Environment variables (e.g. CM_SRC, CM_BIN, ...)
+/// * Command-line options
+///
+/// Flags are idempotent, and have forms to explicitly specify their defaults (e.g. boolean options
+/// generally have an --option=false form), so that setting them in the config file does not limit
+/// the user on the command-line (i.e. you can always override your own configured defaults).
 ///
 #[derive(Parser)]
 #[command(version, verbatim_doc_comment, infer_subcommands = true)]
-#[command(group = ArgGroup::new("conf").multiple(false))]
-#[command(group = ArgGroup::new("gen").multiple(false))]
+#[command(args_override_self = true)]
 pub struct Cli {
-    /// CMake Source Directory
-    #[arg(short, long, value_hint = ValueHint::DirPath, global = true, help_heading = DIR_HEADING)]
-    pub source: Option<PathBuf>,
-    /// CMake Binary Directory
-    #[arg(short, long, value_hint = ValueHint::DirPath, global = true, help_heading = DIR_HEADING)]
-    pub binary: Option<PathBuf>,
-    /// CMake Build Config
-    #[arg(short, long, default_value = "Release", group = "conf", global = true)]
-    pub config: String,
-    /// Shorthand for `--config Debug`
-    #[arg(short, long, group = "conf", global = true)]
-    pub debug: bool,
-    /// Perform a dry run, only printing the generated command line
-    #[arg(short = '#', long, global = true)]
-    pub dry_run: bool,
-    /// Disable quirk mode detection and specify one explicitly
-    #[arg(short, long, global = true)]
-    pub quirks: Option<Quirks>,
+    #[clap(flatten)]
+    pub globals: Globals,
     /// The subcommand
     #[command(subcommand)]
     pub command: Command,
 }
 
-impl Cli {
-    #[must_use]
-    pub fn final_config(&self) -> String {
-        if self.debug {
-            "Debug".into()
-        } else {
-            self.config.clone()
+#[derive(Args, ArgsToVec)]
+pub struct Globals {
+    /// CMake Source Directory
+    ///
+    /// [default: .]
+    #[arg(short, long, env = "CM_SRC", value_hint = ValueHint::DirPath, global = true, help_heading = GLOBAL_HEADING)]
+    pub source: Option<PathBuf>,
+    /// CMake Binary Directory
+    ///
+    /// [default: ./build]
+    #[arg(short, long, env = "CM_BIN", value_hint = ValueHint::DirPath, global = true, help_heading = GLOBAL_HEADING)]
+    pub binary: Option<PathBuf>,
+    /// CMake Build Config
+    ///
+    /// [default: Release]
+    #[arg(short, long, env = "CM_CFG", value_parser = FuzzyParser::new(["Release", "Debug", "RelWithDebInfo", "MinSizeRel"], None), global = true, help_heading = GLOBAL_HEADING)]
+    pub config: Option<String>,
+    /// Disable quirk mode detection and specify one explicitly
+    ///
+    /// [default: none]
+    #[arg(short, long, env = "CM_QUIRKS", global = true, help_heading = GLOBAL_HEADING)]
+    pub quirks: Option<Quirks>,
+    /// Perform a dry run, only printing the generated command line
+    #[arg(short = '#', long, settable_bool(), global = true, help_heading = GLOBAL_HEADING)]
+    pub dry_run: Option<Bool>,
+}
+
+impl Globals {
+    pub fn final_config(&self) -> &str {
+        self.config.as_deref().unwrap_or("Release")
+    }
+}
+
+#[derive(clap::ValueEnum, Clone, Copy)]
+pub enum Quirks {
+    None,
+    Llvm,
+}
+
+impl AsRef<OsStr> for Quirks {
+    fn as_ref(&self) -> &OsStr {
+        match self {
+            Quirks::None => "none".as_ref(),
+            Quirks::Llvm => "llvm".as_ref(),
         }
     }
 }
@@ -200,69 +191,79 @@ pub enum Command {
     #[command(visible_alias = "b")]
     Build(Build),
     /// llvm-lit
+    ///
+    /// The "lit" subcommand provides a powerful interface to llvm-lit (and cmake --build, to
+    /// implement the -g/--group flag). It optionally ensures that a ResultDB file called
+    /// "lit.json" is written to the binary path when tests are run, allowing subsequent runs to
+    /// recall which tests failed. With no arguments or flags specifying which tests to run, the
+    /// subcommand will run all tests marked as failed in the ResultDB. Repeatedly invoking the
+    /// subcommand can thus incrementally "resolve" tests as the ResultDB is updated, removing them
+    /// from the list of failing tests until it is empty. This behavior is controlled by the
+    /// -u/--update-resulbdb[=<BOOL>] flag which is enabled by default unless a particular subset
+    /// of tests is specified (via the -1/--first flag or TESTS arguments). The developer can then
+    /// focus on specific failing tests without losing track of the remaining failing tests, and
+    /// can record newly passing tests by running the subcommand without specifying a subset.
+    ///
+    /// The "lit" subcommand will also manage the FILECHECK_OPTS environment variable to make truly
+    /// "verbose" lit output easier to achieve.
     #[command(visible_alias = "l")]
     Lit(Lit),
     /// Print shell commands to activate a set of global options
     ///
-    /// Prepends the PATH environment variable with the bin subdirectory of the binary path, sets
-    /// CM_SRC/CM_BIN/CM_CFG/CM_QUIRKS, and defines an alias for cm which uses them.
+    /// The "activate" command sets variables for the source directory ("CM_SRC"), binary directory
+    /// ("CM_BIN"), configuration ("CM_CFG"), and quirks mode ("CM_QUIRKS"), which are interpreted
+    /// as-if they were provided on the command-line. To simplify executing binaries in the binary
+    /// directory it also prepends the "bin" subdirectory in the binary path to the "PATH"
+    /// environment variable.
     #[command(visible_alias = "a")]
     Activate(Activate),
     /// Print shell commands to deactivate global options set via activate
     ///
-    /// Attempts to remove elements from the PATH environment variable which correspond to the
-    /// active CM_BIN, unsets CM_SRC/CM_BIN/CM_CFG/CM_QUIRKS, and unaliases cm.
+    /// The "deactivate" command attempts to undo all of the effects of "activate".
     #[command(visible_alias = "d")]
     Deactivate(Deactivate),
 }
 
 #[derive(Args)]
-#[command(group = ArgGroup::new("targets").multiple(false))]
 pub struct Configure {
-    /// Append to CMAKE_PREFIX_PATH [default: empty]
-    #[arg(short, long)]
+    /// Set CMAKE_PREFIX_PATH
+    #[arg(long, overriding_vec())]
     pub prefix_path: Vec<String>,
     /// CMake Generator
-    #[arg(short, long, default_value = "Ninja", group = "gen")]
+    #[arg(short, long, default_value = "Ninja")]
     pub generator: String,
-    /// Shorthand for `-g "Unix Makefiles"`
-    #[arg(short, long, group = "gen")]
-    pub makefiles: bool,
-    /// Append to C_FLAGS and CXX_FLAGS
-    #[arg(short, long)]
-    pub flag: Vec<String>,
+    /// Set BUILD_SHARED_LIBS
+    #[arg(long, settable_bool(), default_value_t = true)]
+    pub shared_libs: bool,
     /// Enable ASan and UBSan
-    #[arg(long)]
+    #[arg(long, settable_bool())]
     pub san: bool,
     /// Set the preferred linker.
     ///
     /// This is honored on a best-effort basis, and is only currently implemented for
     /// LLVM quirks mode, where the default is to try to use lld or gold if they are available.
-    /// This default is intended to work around exteremely slow or impossible link steps
+    /// This default is intended to work around extremely slow or impossible link steps
     /// for debug builds of LLVM when using the system linker in many environments.
     ///
     /// Specify "default" to explicitly disable automatic linker selection and use the system default.
     #[arg(long, value_parser = FuzzyParser::new(["lld", "gold", "mold", "bfd", "default"], None))]
     pub linker: Option<String>,
     /// Enable expensive checks
-    #[arg(long, help_heading = LLVM_HEADING)]
+    #[arg(long, settable_bool(), help_heading = LLVM_HEADING)]
     pub expensive_checks: bool,
-    /// Append to LLVM_ENABLE_PROJECTS [default: llvm,clang,lld]
+    /// Set LLVM_ENABLE_PROJECTS [default: llvm,clang,lld]
     ///
-    /// Repeatable and accepts comma-separated arguments (e.g. -e foo -e bar,baz).
-    ///
-    /// When no project is specified, the default set is used. If any project is specified the
-    /// default set is ignored and all specified projects are enabled.
-    #[arg(short, long, help_heading = LLVM_HEADING, value_delimiter = ',', value_parser = FuzzyParser::new(include!("../values/llvm_all_projects.in"), None))]
+    /// Accepts comma-separated arguments (e.g. -p bar,baz).
+    #[arg(short = 'p', long, overriding_vec(), value_parser = FuzzyParser::new(include!("../values/llvm_all_projects.in"), None), help_heading = LLVM_HEADING)]
     pub enable_projects: Option<Vec<String>>,
-    /// Append to LLVM_ENABLE_RUNTIMES [default: ""]
+    /// Set LLVM_ENABLE_RUNTIMES [default: ""]
     ///
-    /// Repeatable and accepts comma-separated arguments (e.g. -r foo -r bar,baz).
-    #[arg(short = 'r', long, help_heading = LLVM_HEADING, value_delimiter = ',', value_parser = FuzzyParser::new(include!("../values/llvm_all_runtimes.in"), None))]
+    /// Accepts comma-separated arguments (e.g. -r bar,baz).
+    #[arg(short = 'r', long, overriding_vec(), value_parser = FuzzyParser::new(include!("../values/llvm_all_runtimes.in"), None), help_heading = LLVM_HEADING)]
     pub enable_runtimes: Option<Vec<String>>,
-    /// Append to LLVM_TARGETS_TO_BUILD [default: all]
+    /// Set LLVM_TARGETS_TO_BUILD [default: all]
     ///
-    /// Repeatable and accepts comma-separated arguments (e.g. -t foo -t bar,baz).
+    /// Accepts comma-separated arguments (e.g. -t bar,baz).
     ///
     /// When no target is specified, the default set is used. If any target is specified, the
     /// default set is ignored and all specified targets _as well as the "Native" target_ are
@@ -274,14 +275,12 @@ pub struct Configure {
     ///     $ cm configure -t AMDGPU
     ///
     /// To disable the implicit inclusion of the "Native" target, use the
-    /// -T/--targets-to-build-alt flag instead.
-    #[arg(short, long, group = "targets", help_heading = LLVM_HEADING, value_delimiter = ',', value_parser = FuzzyParser::new(include!("../values/llvm_all_targets.in"), None))]
+    /// -T/--disable-implicit-native flag.
+    #[arg(short, long, overriding_vec(), value_parser = FuzzyParser::new(include!("../values/llvm_all_targets.in"), None), help_heading = LLVM_HEADING)]
     pub targets_to_build: Option<Vec<String>>,
-    /// Append to LLVM_TARGETS_TO_BUILD wihout implicit "Native" target [default: all]
-    ///
-    /// See -t/--targets-to-build help for more details
-    #[arg(short = 'T', long, group = "targets", help_heading = LLVM_HEADING, value_delimiter = ',', value_parser = FuzzyParser::new(include!("../values/llvm_all_targets_alt.in"), None))]
-    pub targets_to_build_alt: Option<Vec<String>>,
+    /// Disable implicit "Native" target in -t/--targets-to-build
+    #[arg(short = 'T', long, settable_bool(), help_heading = LLVM_HEADING)]
+    pub disable_implicit_native: bool,
     /// Trailing arguments to forward to cmake
     pub args: Vec<OsString>,
 }
@@ -296,10 +295,10 @@ pub struct Build {
 #[command(group = ArgGroup::new("select").multiple(false))]
 pub struct Lit {
     /// Print tests that would be run
-    #[arg(short, long)]
+    #[arg(short, long, settable_bool())]
     pub print_only: bool,
     /// Print a command-line which exports LIT_XFAIL to the tests that would be run
-    #[arg(short, long)]
+    #[arg(short, long, settable_bool())]
     pub xfail_export: bool,
     /// Update the ResultDB file.
     ///
@@ -308,7 +307,7 @@ pub struct Lit {
     ///
     /// Accepts explicit argument via -u/--update-resultdb=true or -u/--update-resultdb=false
     /// and has a shorthand -u/--update-resultdb for the former.
-    #[arg(short, long, action = ArgAction::Set, value_name = "BOOL", num_args = 0..=1, require_equals = true,
+    #[arg(short, long, action = ArgAction::Set, settable_bool(),
           default_value_t = true,
           default_missing_value = "true",
           default_value_if("first", ArgPredicate::IsPresent, Some("false")),
@@ -328,7 +327,7 @@ pub struct Lit {
     pub first: bool,
     /// Be as verbose as possible, asking FileCheck to dump its input and asking llvm-lit to
     /// forward it to stdout
-    #[arg(short, long)]
+    #[arg(short, long, settable_bool())]
     pub verbose: bool,
     /// Lit test paths to run
     #[arg(group = "select")]
@@ -348,120 +347,3 @@ pub struct Activate {}
 
 #[derive(Args)]
 pub struct Deactivate {}
-
-#[derive(clap::ValueEnum, Clone, Copy)]
-pub enum Quirks {
-    None,
-    Llvm,
-}
-
-// FIXME: Unsure how to hook into clap derive ValueEnum naming rather than add this explicitly.
-impl fmt::Display for Quirks {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Quirks::None => write!(f, "none"),
-            Quirks::Llvm => write!(f, "llvm"),
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct FuzzyParser {
-    known_values: Vec<&'static str>,
-    inferrable_prefix: Option<&'static str>,
-}
-
-impl FuzzyParser {
-    fn new(
-        known_values: impl Into<Vec<&'static str>>,
-        inferrable_prefix: Option<&'static str>,
-    ) -> Self {
-        Self {
-            known_values: known_values.into(),
-            inferrable_prefix,
-        }
-    }
-
-    fn error(
-        &self,
-        cmd: &clap::Command,
-        arg: Option<&clap::Arg>,
-        val: impl Into<String>,
-    ) -> ClapError {
-        let mut err = ClapError::new(ClapErrorKind::InvalidValue).with_cmd(cmd);
-        if let Some(arg) = arg {
-            err.insert(
-                ContextKind::InvalidArg,
-                ContextValue::String(arg.to_string()),
-            );
-        }
-        err.insert(ContextKind::InvalidValue, ContextValue::String(val.into()));
-        // We mention the inferrable_prefix here to make it clear that there is a "namespace" where
-        // any string is legal, alongside the incomplete set of known values. We do not include
-        // this in the possible_values proper as we it would confuse the autocomplete generation.
-        let mut valid_values = Vec::new();
-        if let Some(prefix) = self.inferrable_prefix {
-            valid_values.push(format!("{prefix}*"));
-        }
-        valid_values.extend(self.known_values.iter().copied().map(String::from));
-        err.insert(ContextKind::ValidValue, ContextValue::Strings(valid_values));
-        err
-    }
-
-    fn parse_ref_without_inferrable_prefix(
-        &self,
-        _cmd: &clap::Command,
-        _arg: Option<&clap::Arg>,
-        value: &str,
-    ) -> Result<String, ClapError> {
-        Ok(value.to_string())
-    }
-
-    fn parse_ref_with_inferrable_prefix(
-        &self,
-        cmd: &clap::Command,
-        arg: Option<&clap::Arg>,
-        value: &str,
-        inferrable_prefix: &str,
-    ) -> Result<String, ClapError> {
-        if value.starts_with(inferrable_prefix) {
-            return Ok(value.to_string());
-        }
-        let matching_groups = self
-            .known_values
-            .iter()
-            .filter(|s| s.starts_with(value))
-            .collect::<Vec<_>>();
-        match matching_groups[..] {
-            [unique_group] => Ok(format!("{inferrable_prefix}{unique_group}")),
-            _ => Err(self.error(cmd, arg, value)),
-        }
-    }
-}
-
-impl TypedValueParser for FuzzyParser {
-    type Value = String;
-
-    fn possible_values(&self) -> Option<Box<dyn Iterator<Item = PossibleValue> + '_>> {
-        Some(Box::new(
-            self.known_values.iter().copied().map(PossibleValue::new),
-        ))
-    }
-
-    fn parse_ref(
-        &self,
-        cmd: &clap::Command,
-        arg: Option<&clap::Arg>,
-        value: &std::ffi::OsStr,
-    ) -> Result<Self::Value, ClapError> {
-        let value = value
-            .to_str()
-            .ok_or_else(|| ClapError::new(ClapErrorKind::InvalidUtf8))?;
-        match self.inferrable_prefix {
-            None => self.parse_ref_without_inferrable_prefix(cmd, arg, value),
-            Some(inferrable_prefix) => {
-                self.parse_ref_with_inferrable_prefix(cmd, arg, value, inferrable_prefix)
-            }
-        }
-    }
-}

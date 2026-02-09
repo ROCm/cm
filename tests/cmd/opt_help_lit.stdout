@@ -1,5 +1,19 @@
 llvm-lit
 
+The "lit" subcommand provides a powerful interface to llvm-lit (and cmake --build, to implement the
+-g/--group flag). It optionally ensures that a ResultDB file called "lit.json" is written to the
+binary path when tests are run, allowing subsequent runs to recall which tests failed. With no
+arguments or flags specifying which tests to run, the subcommand will run all tests marked as failed
+in the ResultDB. Repeatedly invoking the subcommand can thus incrementally "resolve" tests as the
+ResultDB is updated, removing them from the list of failing tests until it is empty. This behavior
+is controlled by the -u/--update-resulbdb[=<BOOL>] flag which is enabled by default unless a
+particular subset of tests is specified (via the -1/--first flag or TESTS arguments). The developer
+can then focus on specific failing tests without losing track of the remaining failing tests, and
+can record newly passing tests by running the subcommand without specifying a subset.
+
+The "lit" subcommand will also manage the FILECHECK_OPTS environment variable to make truly
+"verbose" lit output easier to achieve.
+
 Usage: cm lit [OPTIONS] [TESTS]... [-- <ARGS>...]
 
 Arguments:
@@ -15,16 +29,17 @@ Arguments:
           requires no additional flags or separators.
 
 Options:
-  -p, --print-only
+  -p, --print-only[=<BOOL>]
           Print tests that would be run
-
-  -x, --xfail-export
-          Print a command-line which exports LIT_XFAIL to the tests that would be run
-
-  -c, --config <CONFIG>
-          CMake Build Config
           
-          [default: Release]
+          [default: false]
+          [possible values: true, false]
+
+  -x, --xfail-export[=<BOOL>]
+          Print a command-line which exports LIT_XFAIL to the tests that would be run
+          
+          [default: false]
+          [possible values: true, false]
 
   -u, --update-resultdb[=<BOOL>]
           Update the ResultDB file.
@@ -38,9 +53,6 @@ Options:
           [default: true]
           [possible values: true, false]
 
-  -d, --debug
-          Shorthand for `--config Debug`
-
   -g, --group <GROUP>
           Run the named LLVM "check-*" test group, and (by default) update the ResultDB.
           
@@ -51,27 +63,49 @@ Options:
           
           [possible values: all, llvm, clang, lld]
 
-  -#, --dry-run
-          Perform a dry run, only printing the generated command line
-
   -1, --first
           Only consider at most the first failing test in the ResultDB
 
-  -q, --quirks <QUIRKS>
-          Disable quirk mode detection and specify one explicitly
-          
-          [possible values: none, llvm]
-
-  -v, --verbose
+  -v, --verbose[=<BOOL>]
           Be as verbose as possible, asking FileCheck to dump its input and asking llvm-lit to
           forward it to stdout
+          
+          [default: false]
+          [possible values: true, false]
 
   -h, --help
           Print help (see a summary with '-h')
 
-CMAKE DIRECTORY OPTIONS:
+Global Options:
   -s, --source <SOURCE>
           CMake Source Directory
+          
+          [default: .]
+          
+          [env: CM_SRC=]
 
   -b, --binary <BINARY>
           CMake Binary Directory
+          
+          [default: ./build]
+          
+          [env: CM_BIN=]
+
+  -c, --config <CONFIG>
+          CMake Build Config
+          
+          [default: Release]
+          
+          [env: CM_CFG=]
+          [possible values: Release, Debug, RelWithDebInfo, MinSizeRel]
+
+  -q, --quirks <QUIRKS>
+          Disable quirk mode detection and specify one explicitly
+          
+          [default: none]
+          
+          [env: CM_QUIRKS=]
+          [possible values: none, llvm]
+
+  -#, --dry-run[=<BOOL>]
+          Perform a dry run, only printing the generated command line

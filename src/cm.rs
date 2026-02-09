@@ -1,7 +1,10 @@
 // Copyright © 2024 Advanced Micro Devices, Inc. All rights reserved.
 // SPDX-License-Identifier: MIT
 
+use crate::args;
 use crate::cli::{Activate, Build, Cli, Command, Configure, Deactivate, Lit, Quirks};
+use applause::Bool;
+use clap::Parser;
 use regex::Regex;
 use serde::Deserialize;
 use shell_quote::{Bash, Quotable, QuoteInto};
@@ -12,7 +15,7 @@ use std::fmt;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::ErrorKind::NotFound;
-use std::path::{Path, PathBuf};
+use std::path::{absolute, Path, PathBuf};
 use std::process::{self, Stdio};
 use std::sync::LazyLock;
 
@@ -112,17 +115,16 @@ fn plan_configure(
     paths: Paths,
 ) -> Result<Vec<process::Command>> {
     let mut cmd = adjust_path(process::Command::new("cmake"));
-    let mut flags = Vec::new();
+    let mut flags = Vec::<String>::new();
     cmd.arg("-S");
     cmd.arg(paths.source.as_os_str());
     cmd.arg("-B");
     cmd.arg(paths.binary.as_os_str());
-    if configure.makefiles {
-        cmd.args(["-G", "Unix Makefiles"]);
-    } else {
-        cmd.args(["-G", &*configure.generator]);
+    cmd.args(["-G", &*configure.generator]);
+    cmd.arg(format!("-DCMAKE_BUILD_TYPE={}", cli.globals.final_config()));
+    if configure.shared_libs {
+        cmd.arg("-DBUILD_SHARED_LIBS=On");
     }
-    cmd.arg(format!("-DCMAKE_BUILD_TYPE={}", cli.final_config()));
     cmd.arg(format!(
         "-DCMAKE_PREFIX_PATH={}",
         configure.prefix_path.join(";")
@@ -176,40 +178,38 @@ fn plan_configure(
             }
         }
     }
-    if configure.expensive_checks {
-        cmd.arg("-DLLVM_ENABLE_EXPENSIVE_CHECKS=On");
-        cmd.arg("-DLLVM_ENABLE_WERROR=Off");
+    if let Quirks::Llvm = quirks {
+        if configure.expensive_checks {
+            cmd.arg("-DLLVM_ENABLE_EXPENSIVE_CHECKS=On");
+            cmd.arg("-DLLVM_ENABLE_WERROR=Off");
+        }
+        cmd.arg(format!(
+            "-DLLVM_ENABLE_PROJECTS={}",
+            configure
+                .enable_projects
+                .as_ref()
+                .map_or("llvm;clang;lld".into(), |v| v.join(";"))
+        ));
+        cmd.arg(format!(
+            "-DLLVM_ENABLE_RUNTIMES={}",
+            configure
+                .enable_runtimes
+                .as_ref()
+                .map_or("".into(), |v| v.join(";"))
+        ));
+        let targets = if let Some(targets) = &configure.targets_to_build {
+            let mut t = vec![];
+            if !configure.disable_implicit_native {
+                t.push("Native".into());
+            }
+            t.extend(targets.iter().cloned());
+            t.join(";")
+        } else {
+            "all".into()
+        };
+        cmd.arg(format!("-DLLVM_TARGETS_TO_BUILD={targets}"));
     }
-    cmd.arg(format!(
-        "-DLLVM_ENABLE_PROJECTS={}",
-        configure
-            .enable_projects
-            .as_ref()
-            .map_or("llvm;clang;lld".into(), |v| v.join(";"))
-    ));
-    cmd.arg(format!(
-        "-DLLVM_ENABLE_RUNTIMES={}",
-        configure
-            .enable_runtimes
-            .as_ref()
-            .map_or("".into(), |v| v.join(";"))
-    ));
-    let targets = if let Some(targets) = &configure.targets_to_build {
-        let mut t = vec!["Native".into()];
-        t.extend(targets.iter().cloned());
-        t.join(";")
-    } else if let Some(targets) = &configure.targets_to_build_alt {
-        targets.join(";")
-    } else {
-        "all".into()
-    };
-    cmd.arg(format!("-DLLVM_TARGETS_TO_BUILD={targets}"));
-    let flags = flags
-        .iter()
-        .chain(configure.flag.iter())
-        .map(|s| &**s)
-        .collect::<Vec<_>>()
-        .join(" ");
+    let flags = flags.join(" ");
     let maybe_prepend_space = |mut s: String| {
         if !flags.is_empty() {
             s.insert(0, ' ');
@@ -241,7 +241,7 @@ fn build_cmd(cli: &Cli, paths: Paths) -> process::Command {
     cmd.arg("--build");
     cmd.arg(paths.binary);
     cmd.arg("--config");
-    cmd.arg(cli.final_config());
+    cmd.arg(cli.globals.final_config());
     cmd.arg("--");
     cmd
 }
@@ -332,13 +332,12 @@ fn plan_activate(
     cmd.arg(
         "CM_SRC=%s CM_BIN=%s CM_CFG=%s CM_QUIRKS=%s;\\n\
         export CM_SRC CM_BIN CM_CFG CM_QUIRKS;\\n\
-        PATH=\"$CM_BIN/bin:$PATH\";\\n\
-        alias cm='cm -s \"$CM_SRC\" -b \"$CM_BIN\" -c \"$CM_CFG\" -q \"$CM_QUIRKS\"';\\n",
+        PATH=\"$CM_BIN/bin:$PATH\";\\n",
     );
     cmd.arg(quote(paths.source));
     cmd.arg(quote(paths.binary));
-    cmd.arg(quote(&cli.final_config()));
-    cmd.arg(quote(&quirks.to_string()));
+    cmd.arg(quote(cli.globals.final_config()));
+    cmd.arg(quote(quirks.as_ref()));
     Ok(vec![cmd])
 }
 
@@ -350,8 +349,7 @@ fn plan_deactivate(
 ) -> Result<Vec<process::Command>> {
     let mut cmd = process::Command::new("printf");
     cmd.arg(
-        "unalias cm;\\n\
-        [ -z \"$CM_BIN\" ] || PATH=\"${PATH/$CM_BIN\\/bin:/}\";\\n\
+        "[ -z \"$CM_BIN\" ] || PATH=\"${PATH/$CM_BIN\\/bin:/}\";\\n\
         unset -v CM_SRC CM_BIN CM_CFG CM_QUIRKS;\\n",
     );
     Ok(vec![cmd])
@@ -418,7 +416,7 @@ fn has_cc_flag(name: &str) -> Result<bool> {
 }
 
 fn detect_quirks(cli: &Cli) -> Quirks {
-    let source = cli.source.clone().unwrap_or(".".into());
+    let source = cli.globals.source.clone().unwrap_or(".".into());
     let mut cml = source.clone();
     cml.push(r"CMakeLists.txt");
     let mut llvm = source.clone();
@@ -458,20 +456,21 @@ fn quote<'a, S: Into<Quotable<'a>>>(s: S) -> OsString {
     out
 }
 
-pub fn cm(cli: &Cli) -> Result<()> {
-    let quirks = cli.quirks.unwrap_or(detect_quirks(cli));
-    let source = cli.source.clone().unwrap_or(match quirks {
+pub fn cm() -> Result<()> {
+    let cli = Cli::parse_from(args::build()?);
+    let quirks = cli.globals.quirks.unwrap_or(detect_quirks(&cli));
+    let source = absolute(cli.globals.source.clone().unwrap_or(match quirks {
         Quirks::None => ".".into(),
         Quirks::Llvm => "llvm".into(),
-    });
-    let binary = cli.binary.clone().unwrap_or("build".into());
+    }))?;
+    let binary = absolute(cli.globals.binary.clone().unwrap_or("build".into()))?;
     let paths = Paths {
         source: &source,
         binary: &binary,
     };
-    let cmds = plan(&cli.command, cli, quirks, paths)?;
+    let cmds = plan(&cli.command, &cli, quirks, paths)?;
     for ref mut cmd in cmds {
-        if cli.dry_run {
+        if let Some(Bool(true)) = cli.globals.dry_run {
             let mut quoted = Vec::new();
             quoted.extend(cmd.get_envs().filter_map(|(key, val)| {
                 Some(format!(

@@ -1,2 +1,2 @@
 bin.name = "cm"
-args = "-# configure -e llvm -e lld -e clang,lldb"
+args = "-# -q llvm configure -p llvm -p lld -p clang,lldb"

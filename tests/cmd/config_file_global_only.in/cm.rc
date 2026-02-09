@@ -1,0 +1,3 @@
+-#
+-cDebug
+--quirks=llvm

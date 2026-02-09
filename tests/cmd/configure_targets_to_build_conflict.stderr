@@ -1,5 +1,0 @@
-error: the argument '--targets-to-build <TARGETS_TO_BUILD>' cannot be used with '--targets-to-build-alt <TARGETS_TO_BUILD_ALT>'
-
-Usage: cm configure --targets-to-build <TARGETS_TO_BUILD> [ARGS]...
-
-For more information, try '--help'.
