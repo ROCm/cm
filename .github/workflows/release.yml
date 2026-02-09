@@ -97,16 +97,26 @@ jobs:
           
           # Create a new tree with both files
           NEW_TREE=$(gh api --method POST /repos/:owner/:repo/git/trees \
-            --field base_tree="$PARENT_TREE" \
-            --field "tree[][path]=Cargo.toml" \
-            --field "tree[][mode]=100644" \
-            --field "tree[][type]=blob" \
-            --field "tree[][sha]=$CARGO_TOML_BLOB" \
-            --field "tree[][path]=Cargo.lock" \
-            --field "tree[][mode]=100644" \
-            --field "tree[][type]=blob" \
-            --field "tree[][sha]=$CARGO_LOCK_BLOB" \
+            --input - <<< '{
+              "base_tree": "$PARENT_TREE",
+              "tree": [
+                {
+                  "path": "Cargo.toml",
+                  "mode": 100644,
+                  "type": "blob",
+                  "sha": "$CARGO_TOML_BLOB"
+                },
+                {
+                  "path": "Cargo.lock",
+                  "mode": 100644,
+                  "type": "blob",
+                  "sha": "$CARGO_LOCK_BLOB"
+                }
+              ]
+            }' \
             --jq '.sha')
+
+            
           
           # Create a new commit
           NEW_COMMIT=$(gh api --method POST /repos/:owner/:repo/git/commits \
