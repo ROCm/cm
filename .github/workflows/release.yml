@@ -102,13 +102,13 @@ jobs:
               "tree": [
                 {
                   "path": "Cargo.toml",
-                  "mode": 100644,
+                  "mode": "100644",
                   "type": "blob",
                   "sha": "'"$CARGO_TOML_BLOB"'"
                 },
                 {
                   "path": "Cargo.lock",
-                  "mode": 100644,
+                  "mode": "100644",
                   "type": "blob",
                   "sha": "'"$CARGO_LOCK_BLOB"'"
                 }
