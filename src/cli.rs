@@ -148,7 +148,7 @@ pub struct Globals {
     pub binary: Option<PathBuf>,
     /// CMake Build Config
     ///
-    /// [default: Release]
+    /// [default: RelWithDebInfo]
     #[arg(short, long, env = "CM_CFG", value_parser = FuzzyParser::new(["Release", "Debug", "RelWithDebInfo", "MinSizeRel"], None), global = true, help_heading = GLOBAL_HEADING)]
     pub config: Option<String>,
     /// Disable quirk mode detection and specify one explicitly
@@ -163,7 +163,7 @@ pub struct Globals {
 
 impl Globals {
     pub fn final_config(&self) -> &str {
-        self.config.as_deref().unwrap_or("Release")
+        self.config.as_deref().unwrap_or("RelWithDebInfo")
     }
 }
 

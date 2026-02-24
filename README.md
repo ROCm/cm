@@ -156,7 +156,7 @@ Global Options:
   -c, --config <CONFIG>
           CMake Build Config
           
-          [default: Release]
+          [default: RelWithDebInfo]
           
           [env: CM_CFG=]
           [possible values: Release, Debug, RelWithDebInfo, MinSizeRel]
