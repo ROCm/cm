@@ -1,1 +1,1 @@
-cmake --build [CWD]/build --config Release --
+cmake --build [CWD]/build --config RelWithDebInfo --

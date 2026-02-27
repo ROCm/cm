@@ -1,2 +1,2 @@
 rm -rf [CWD]/foo/CMakeCache.txt [CWD]/foo/CMakeFiles
-PATH=$'bar/bin:baz/bin' cmake -S [CWD] -B [CWD]/foo -G Ninja $'-DCMAKE_BUILD_TYPE=Release' $'-DBUILD_SHARED_LIBS=On' $'-DCMAKE_PREFIX_PATH=' $'-DCMAKE_INSTALL_PREFIX=dist' $'-DCMAKE_EXPORT_COMPILE_COMMANDS=On' $'-DCMAKE_C_COMPILER_LAUNCHER=ccache' $'-DCMAKE_CXX_COMPILER_LAUNCHER=ccache' $'-DCMAKE_C_FLAGS=--user-c-flag' $'-DCMAKE_CXX_FLAGS=--user-cxx-flag'
+PATH=$'bar/bin:baz/bin' cmake -S [CWD] -B [CWD]/foo -G Ninja $'-DCMAKE_BUILD_TYPE=RelWithDebInfo' $'-DBUILD_SHARED_LIBS=On' $'-DCMAKE_PREFIX_PATH=' $'-DCMAKE_INSTALL_PREFIX=dist' $'-DCMAKE_EXPORT_COMPILE_COMMANDS=On' $'-DCMAKE_C_COMPILER_LAUNCHER=ccache' $'-DCMAKE_CXX_COMPILER_LAUNCHER=ccache' $'-DCMAKE_C_FLAGS=--user-c-flag' $'-DCMAKE_CXX_FLAGS=--user-cxx-flag'
