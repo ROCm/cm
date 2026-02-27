@@ -33,6 +33,7 @@ serde_json = "1.0.149"
 shell-quote = "0.7.1"
 applause = { path = "applause" }
 applause_derive = { path = "applause_derive" }
+anyhow = "1.0.102"
 
 [dev-dependencies]
 trycmd = "0.15.11"

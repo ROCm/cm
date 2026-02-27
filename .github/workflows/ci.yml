@@ -13,6 +13,7 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  RUST_LIB_BACKTRACE: 0
   RUSTFLAGS: -Dwarnings
 
 jobs:
