@@ -7,7 +7,7 @@ description = "Frontend for configuring/building/testing CMake projects."
 build = "build.rs"
 
 [package.metadata.deb]
-maintainer = "AMD"
+maintainer = "Scott Linder"
 copyright = "AMD"
 assets = [
     ["target/release/cm", "usr/bin/cm", "755"],

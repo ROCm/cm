@@ -17,31 +17,31 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-      
+
       - name: Get current version
         id: get_version
         run: |
           CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           echo "Current version: $CURRENT_VERSION"
-      
+
       - name: Calculate new version
         id: calc_version
         run: |
           CURRENT_VERSION="${{ steps.get_version.outputs.current_version }}"
           IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
-          
+
           if [ "${{ inputs.version_bump }}" == "major" ]; then
             # Bump major, reset minor and patch
             NEW_VERSION="$((major + 1)).0.0"
@@ -52,24 +52,24 @@ jobs:
             # Bump patch
             NEW_VERSION="${major}.${minor}.$((patch + 1))"
           fi
-          
+
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
-      
+
       - name: Update Cargo.toml
         run: |
           NEW_VERSION="${{ steps.calc_version.outputs.new_version }}"
           sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
-          
+
           echo "Updated Cargo.toml:"
           grep '^version = ' Cargo.toml | head -1
-      
+
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
-      
+
       - name: Build with cargo to update Cargo.lock
         run: cargo build
-      
+
       - name: Create signed commit via GitHub API
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -77,24 +77,24 @@ jobs:
           NEW_VERSION="${{ steps.calc_version.outputs.new_version }}"
           MESSAGE="Bump version to $NEW_VERSION"
           BRANCH="main"
-          
+
           # Get the current commit SHA
           PARENT_SHA=$(git rev-parse HEAD)
-          
+
           # Get the current tree
           PARENT_TREE=$(gh api /repos/:owner/:repo/git/commits/$PARENT_SHA --jq '.tree.sha')
-          
+
           # Create blobs for both files
           CARGO_TOML_BLOB=$(gh api --method POST /repos/:owner/:repo/git/blobs \
             --field content=@<( base64 -w 0 Cargo.toml ) \
             --field encoding="base64" \
             --jq '.sha')
-          
+
           CARGO_LOCK_BLOB=$(gh api --method POST /repos/:owner/:repo/git/blobs \
             --field content=@<( base64 -w 0 Cargo.lock ) \
             --field encoding="base64" \
             --jq '.sha')
-          
+
           # Create a new tree with both files
           NEW_TREE=$(gh api --method POST /repos/:owner/:repo/git/trees \
             --input - <<< '{
@@ -116,32 +116,32 @@ jobs:
             }' \
             --jq '.sha')
 
-            
-          
+
+
           # Create a new commit
           NEW_COMMIT=$(gh api --method POST /repos/:owner/:repo/git/commits \
             --field message="$MESSAGE" \
             --field tree="$NEW_TREE" \
             --field "parents[]=$PARENT_SHA" \
             --jq '.sha')
-          
+
           # Update the branch reference
           gh api --method PATCH /repos/:owner/:repo/git/refs/heads/$BRANCH \
             --field sha="$NEW_COMMIT"
-          
+
           # Create tag
           git fetch origin
           git tag "v$NEW_VERSION" origin/$BRANCH
           git push origin "v$NEW_VERSION"
-      
+
       - name: Build DEB
         run: |
           docker run --rm -t \
             -v $HOME/.cargo/registry/:/root/.cargo/registry \
-            -v "$(pwd)":/volume \
-            clux/muslrust:stable \
-            /bin/sh -c 'cargo install cargo-deb && cargo deb --target x86_64-unknown-linux-musl --output cm-amd64-musl.deb'
-      
+            -v "$(pwd)":/home/rust/src \
+            blackdex/rust-musl:x86_64-musl-nightly \
+            /bin/sh -c 'cargo build --release --artifact-dir=. -Z unstable-options && cargo install cargo-deb && cargo deb --target x86_64-unknown-linux-musl --output cm-amd64-musl.deb'
+
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
@@ -151,3 +151,4 @@ jobs:
           fail_on_unmatched_files: true
           files: |
             cm-amd64-musl.deb
+            cm
