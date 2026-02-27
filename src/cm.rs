@@ -134,6 +134,7 @@ fn plan_configure(
     if let Quirks::Llvm = quirks {
         cmd.arg("-DLLVM_ENABLE_ASSERTIONS=On");
         cmd.arg("-DLLVM_OPTIMIZED_TABLEGEN=On");
+        cmd.arg("-DLLVM_USE_SPLIT_DWARF=On");
         if has_command("sphinx-build")? {
             cmd.arg("-DLLVM_ENABLE_SPHINX=On");
         }
