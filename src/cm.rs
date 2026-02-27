@@ -3,6 +3,7 @@
 
 use crate::args;
 use crate::cli::{Activate, Build, Cli, Command, Configure, Deactivate, Lit, Quirks};
+use anyhow::{Context, Error, Result};
 use applause::Bool;
 use clap::Parser;
 use regex::Regex;
@@ -18,8 +19,6 @@ use std::io::ErrorKind::NotFound;
 use std::path::{absolute, Path, PathBuf};
 use std::process::{self, Stdio};
 use std::sync::LazyLock;
-
-type Result<T> = ::std::result::Result<T, Box<dyn error::Error>>;
 
 /// Newtype to capture exit codes from failing commands, as we want to handle these differently
 /// than generic failures.
@@ -42,9 +41,10 @@ struct ResultDB {
 
 impl ResultDB {
     fn parse(paths: Paths) -> Result<ResultDB> {
-        let file = File::open(lit_json_path(paths)?)?;
+        let path = lit_json_path(paths)?;
+        let file = File::open(&path).with_context(|| format!("could not open {path:?}"))?;
         let reader = BufReader::new(file);
-        Ok(serde_json::from_reader(reader)?)
+        serde_json::from_reader(reader).with_context(|| format!("could not parse {path:?}"))
     }
 }
 
@@ -292,7 +292,7 @@ fn plan_lit(lit: &Lit, cli: &Cli, _quirks: Quirks, paths: Paths) -> Result<Vec<p
                 .map(|t| t.test_path(paths))
                 .collect(),
             Err(e) => {
-                eprintln!("warning: ignoring lit.json: {e}");
+                eprintln!("Warning: ignoring lit.json: {e:?}");
                 vec![]
             }
         }
@@ -372,7 +372,10 @@ fn plan(
 }
 
 fn lit_json_path(paths: Paths) -> Result<PathBuf> {
-    let mut path = paths.binary.canonicalize()?;
+    let mut path = paths
+        .binary
+        .canonicalize()
+        .context("could not build lit.json path")?;
     path.push("lit.json");
     Ok(path)
 }
@@ -396,7 +399,8 @@ fn has_command(name: &str) -> Result<bool> {
     match status {
         Ok(_) => Ok(true),
         Err(e) if e.kind() == NotFound => Ok(false),
-        Err(e) => Err(e.into()),
+        Err(e) => Result::Err(Error::new(e))
+            .with_context(|| format!("could not test for existence of command `{name}`")),
     }
 }
 
@@ -412,7 +416,8 @@ fn has_cc_flag(name: &str) -> Result<bool> {
     match status {
         Ok(o) => Ok(o.success()),
         Err(e) if e.kind() == NotFound => Ok(false),
-        Err(e) => Err(e.into()),
+        Err(e) => Result::Err(Error::new(e))
+            .with_context(|| format!("could not test for existence of cc flag `{name}`")),
     }
 }
 
@@ -489,7 +494,7 @@ pub fn cm() -> Result<()> {
         } else {
             let status = cmd.status()?;
             if !status.success() {
-                return Err(Box::new(CommandFailedError(status.code())));
+                return Err(Error::new(CommandFailedError(status.code())));
             }
         }
     }

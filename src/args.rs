@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: MIT
 
 use crate::cli::Globals;
+use anyhow::{Context, Result};
 use applause::ArgsToVec;
 use clap::{Parser, Subcommand};
 use std::env;
-use std::error;
 use std::ffi::{OsStr, OsString};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Lines};
 use std::path::PathBuf;
-
-type Result<T> = ::std::result::Result<T, Box<dyn error::Error>>;
 
 #[derive(Default, Debug)]
 struct Config {
@@ -20,9 +18,13 @@ struct Config {
 
 impl Config {
     fn from_path<P: Into<PathBuf>>(p: P) -> Result<Config> {
+        let path = p.into();
         Ok(Config {
             inner: Some(ConfigInner {
-                lines: BufReader::new(File::open(p.into())?).lines(),
+                lines: BufReader::new(
+                    File::open(&path).with_context(|| format!("could not open {path:?}"))?,
+                )
+                .lines(),
                 section: "".into(),
             }),
         })
@@ -53,7 +55,7 @@ impl Config {
             _ => return Ok(()),
         };
         while let Some(line) = inner.lines.next() {
-            let line = line?;
+            let line = line.context("could not read next line from config file")?;
             if line.starts_with('-') {
                 if inner.in_section(subcommand_prefix) {
                     out.push(line.into());
