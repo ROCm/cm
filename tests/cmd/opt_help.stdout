@@ -111,11 +111,11 @@ the user on the command-line (i.e. you can always override your own configured d
 Usage: cm [OPTIONS] <COMMAND>
 
 Commands:
-  configure   CMake Configure [aliases: c]
-  build       CMake Build [aliases: b]
-  lit         llvm-lit [aliases: l]
-  activate    Print shell commands to activate a set of global options [aliases: a]
-  deactivate  Print shell commands to deactivate global options set via activate [aliases: d]
+  configure   CMake Configure [alias: c]
+  build       CMake Build [alias: b]
+  lit         llvm-lit [alias: l]
+  activate    Print shell commands to activate a set of global options [alias: a]
+  deactivate  Print shell commands to deactivate global options set via activate [alias: d]
   help        Print this message or the help of the given subcommand(s)
 
 Options:
