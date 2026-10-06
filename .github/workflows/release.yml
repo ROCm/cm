@@ -7,6 +7,7 @@ on:
         description: 'Version bump type'
         required: true
         type: choice
+        default: minor
         options:
           - major  # Bump major version and reset minor/patch (e.g., 0.6.0 -> 1.0.0)
           - minor  # Bump minor version and reset patch (e.g., 0.6.0 -> 0.7.0)
