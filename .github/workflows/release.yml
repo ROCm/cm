@@ -20,9 +20,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Configure Git
         run: |
@@ -38,14 +39,16 @@ jobs:
 
       - name: Calculate new version
         id: calc_version
+        env:
+          CURRENT_VERSION: ${{ steps.get_version.outputs.current_version }}
+          VERSION_BUMP: ${{ inputs.version_bump }}
         run: |
-          CURRENT_VERSION="${{ steps.get_version.outputs.current_version }}"
           IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
 
-          if [ "${{ inputs.version_bump }}" == "major" ]; then
+          if [ "$VERSION_BUMP" == "major" ]; then
             # Bump major, reset minor and patch
             NEW_VERSION="$((major + 1)).0.0"
-          elif [ "${{ inputs.version_bump }}" == "minor" ]; then
+          elif [ "$VERSION_BUMP" == "minor" ]; then
             # Bump minor, reset patch
             NEW_VERSION="${major}.$((minor + 1)).0"
           else
@@ -57,15 +60,18 @@ jobs:
           echo "New version: $NEW_VERSION"
 
       - name: Update Cargo.toml
+        env:
+          NEW_VERSION: ${{ steps.calc_version.outputs.new_version }}
         run: |
-          NEW_VERSION="${{ steps.calc_version.outputs.new_version }}"
           sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
 
           echo "Updated Cargo.toml:"
           grep '^version = ' Cargo.toml | head -1
 
       - name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1
+        with:
+          cache: false
 
       - name: Build with cargo to update Cargo.lock
         run: cargo build
@@ -73,8 +79,8 @@ jobs:
       - name: Create signed commit via GitHub API
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_VERSION: ${{ steps.calc_version.outputs.new_version }}
         run: |
-          NEW_VERSION="${{ steps.calc_version.outputs.new_version }}"
           MESSAGE="Bump version to $NEW_VERSION"
           BRANCH="main"
 
@@ -130,9 +136,9 @@ jobs:
             --field sha="$NEW_COMMIT"
 
           # Create tag
-          git fetch origin
-          git tag "v$NEW_VERSION" origin/$BRANCH
-          git push origin "v$NEW_VERSION"
+          gh api --method POST /repos/:owner/:repo/git/refs \
+            --field ref="refs/tags/v$NEW_VERSION" \
+            --field sha="$NEW_COMMIT"
 
       - name: Build DEB
         run: |
@@ -143,12 +149,7 @@ jobs:
             /bin/sh -c 'cargo build --release --artifact-dir=. -Z unstable-options && cargo install cargo-deb && cargo deb --target x86_64-unknown-linux-musl --output cm-amd64-musl.deb'
 
       - name: Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v${{ steps.calc_version.outputs.new_version }}
-          generate_release_notes: true
-          draft: false
-          fail_on_unmatched_files: true
-          files: |
-            cm-amd64-musl.deb
-            cm
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_VERSION: ${{ steps.calc_version.outputs.new_version }}
+        run: gh release create "v$NEW_VERSION" cm-amd64-musl.deb cm --generate-notes --verify-tag
