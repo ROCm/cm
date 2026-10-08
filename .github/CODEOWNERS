@@ -1,0 +1,16 @@
+#
+# Learn about CODEOWNERS file format:
+#   https://help.github.com/en/articles/about-code-owners
+#
+# This is a comment.
+# Each line is a file pattern followed by one or more owners.
+#
+#
+# This file itself
+/.github/CODEOWNERS     @ROCm/rocm-security-gh-admins
+#
+# These owners will be the default owners for everything in the repo. Unless a
+# later match takes precedence, @slinder1 will be requested for review when
+# someone opens a pull request.
+*   @slinder1
+#

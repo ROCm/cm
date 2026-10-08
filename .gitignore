@@ -1,2 +1,45 @@
-target
+# cm specific
 /gen
+
+# Build artifacts
+build/
+dist/
+out/
+target/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# Node.js
+node_modules/
+npm-debug.log*
+
+# Environment files
+.env
+.env.*
+
+# Archives
+*.zip
+*.tar
+*.gz
+
+# Temporary files
+*.tmp
+*.swp
+
+# Security
+secrets.*
+credentials.*
